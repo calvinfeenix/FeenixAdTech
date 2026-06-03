@@ -1,0 +1,114 @@
+/* Google Fonts must be imported before the Tailwind import (CSS @import ordering). */
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Feenix AdTech — brand theme (modeled on feenixgroup.com).
+   True-black surfaces, lime-green primary accent, electric-blue secondary,
+   heavy Archivo display type over an Inter body.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --background: #000000;
+  --surface: #0c0c0e;
+  --card: #131316;
+  --card-hover: #1b1b1f;
+  --foreground: #f5f6f8;
+  --muted: #8e8e98;
+  --muted-strong: #b8b8c2;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+
+  /* Lime-green primary (the brand CTA / highlight colour) */
+  --accent: #c2f23c;
+  --accent-hover: #d2ff52;
+  --accent-soft: rgba(194, 242, 60, 0.14);
+
+  /* Electric-blue secondary (used for the "WORK" highlight, BRANDS tile, etc.) */
+  --accent-2: #29abe2;
+  --accent-2-soft: rgba(41, 171, 226, 0.16);
+
+  --success: #16c784;
+  --warning: #ffb020;
+  --danger: #ff4d4f;
+
+  --sidebar-bg: #000000;
+  --sidebar-text: #8e8e98;
+  --sidebar-active: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-muted: var(--muted);
+  --color-muted-strong: var(--muted-strong);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-soft: var(--accent-2-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active: var(--sidebar-active);
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Archivo", "Inter", system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Trailing-underscore nav labels, à la feenixgroup.com */
+.nav-underscore::after {
+  content: "_";
+  color: var(--accent);
+}
+
+/* Brand glow used on hero / auth panels (lime + blue) */
+.flame-gradient {
+  background:
+    radial-gradient(1100px 600px at 100% -10%, rgba(194, 242, 60, 0.12), transparent 60%),
+    radial-gradient(900px 520px at -10% 110%, rgba(41, 171, 226, 0.12), transparent 60%);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #26262c; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #353540; }
+
+/* Toast animations */
+@keyframes toast-in {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes toast-out {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
+}
+.toast-enter { animation: toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.toast-exit { animation: toast-out 0.25s ease-in; }
+
+/* Fade-up for content sections */
+@keyframes fade-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.fade-up { animation: fade-up 0.35s ease-out both; }

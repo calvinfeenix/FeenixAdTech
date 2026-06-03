@@ -1,0 +1,97 @@
+"use client";
+
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+const AXIS = "#8e8e98";
+const GRID = "rgba(255,255,255,0.06)";
+const COLORS = ["#c2f23c", "#29abe2", "#16c784", "#b06bff", "#ffb020", "#ff6ba6"];
+
+const tooltipStyle = {
+  background: "#141419",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 12,
+  color: "#f4f4f6",
+  fontSize: 12,
+};
+
+export interface TrendPoint {
+  date: string;
+  impressions: number;
+  clicks: number;
+  uniqueUsers: number;
+}
+
+/** Area trend of impressions / unique users / clicks over time. */
+export function TrendChart({ data }: { data: TrendPoint[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <defs>
+          <linearGradient id="g-impr" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#c2f23c" stopOpacity={0.5} />
+            <stop offset="100%" stopColor="#c2f23c" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="g-uu" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#29abe2" stopOpacity={0.4} />
+            <stop offset="100%" stopColor="#29abe2" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke={GRID} vertical={false} />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: AXIS, fontSize: 11 }}
+          tickFormatter={(d: string) => d.slice(5)}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis tick={{ fill: AXIS, fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
+        <Tooltip contentStyle={tooltipStyle} />
+        <Area type="monotone" name="Impressions" dataKey="impressions" stroke="#c2f23c" fill="url(#g-impr)" strokeWidth={2} />
+        <Area type="monotone" name="Unique users" dataKey="uniqueUsers" stroke="#29abe2" fill="url(#g-uu)" strokeWidth={2} />
+        <Area type="monotone" name="Clicks" dataKey="clicks" stroke="#16c784" fill="transparent" strokeWidth={2} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+export interface BreakdownBar {
+  label: string;
+  value: number;
+}
+
+/** Horizontal bar breakdown (e.g. impressions by game or location). */
+export function BreakdownChart({ data }: { data: BreakdownBar[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(140, data.length * 42)}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+        <CartesianGrid stroke={GRID} horizontal={false} />
+        <XAxis type="number" tick={{ fill: AXIS, fontSize: 11 }} tickLine={false} axisLine={false} />
+        <YAxis
+          type="category"
+          dataKey="label"
+          tick={{ fill: "#b6b6c0", fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+          width={130}
+        />
+        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+        <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>
+          {data.map((_, i) => (
+            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

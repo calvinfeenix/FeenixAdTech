@@ -1,0 +1,240 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Search,
+  Plus,
+  Trash2,
+  X,
+  Music,
+  Play,
+  Loader2,
+  Images,
+} from "lucide-react";
+import { useToast } from "@/components/toast";
+import EmptyState from "@/components/empty-state";
+import Badge from "@/components/badge";
+import AssetUploader from "@/components/asset-uploader";
+import {
+  assetTypeColors,
+  formatBytes,
+  formatDate,
+  formatDuration,
+} from "@/lib/utils";
+import type { Asset, AssetType } from "@/lib/types";
+
+const TYPES: (AssetType | "all")[] = ["all", "image", "video", "audio"];
+
+export default function AssetGallery({
+  assets,
+  isAdmin,
+}: {
+  assets: Asset[];
+  isAdmin: boolean;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<AssetType | "all">("all");
+  const [showUploader, setShowUploader] = useState(false);
+  const [inspect, setInspect] = useState<Asset | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return assets.filter((a) => {
+      if (filter !== "all" && a.type !== filter) return false;
+      if (!q) return true;
+      return (
+        a.title.toLowerCase().includes(q) ||
+        a.original_filename.toLowerCase().includes(q) ||
+        a.tags.some((t) => t.toLowerCase().includes(q))
+      );
+    });
+  }, [assets, query, filter]);
+
+  async function handleDelete(asset: Asset) {
+    if (!confirm(`Delete "${asset.title}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Delete failed");
+      toast("Asset deleted", "success");
+      setInspect(null);
+      router.refresh();
+    } catch (err) {
+      toast(String((err as Error).message), "error");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search assets…"
+            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          {TYPES.map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilter(t)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                filter === t
+                  ? "bg-accent-soft text-accent"
+                  : "text-muted hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => setShowUploader(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm bg-accent hover:bg-accent-hover text-black font-semibold transition-all duration-200 hover:shadow-[0_4px_20px_-4px_var(--accent)] active:scale-95"
+          >
+            <Plus size={16} /> Upload
+          </button>
+        )}
+      </div>
+
+      {/* Grid */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Images}
+          title="No assets found"
+          description={
+            assets.length === 0
+              ? isAdmin
+                ? "Upload your first creative to build the repository."
+                : "No assets have been uploaded yet."
+              : "Try a different search or filter."
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {filtered.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => isAdmin && setInspect(a)}
+              className={`group text-left bg-card border border-border rounded-xl overflow-hidden transition-colors ${
+                isAdmin ? "hover:border-border-strong cursor-pointer" : "cursor-default"
+              }`}
+            >
+              <div className="relative aspect-square bg-surface flex items-center justify-center overflow-hidden">
+                {a.thumb_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={a.thumb_url}
+                    alt={a.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                ) : a.type === "audio" ? (
+                  <Music size={32} className="text-muted" />
+                ) : (
+                  <Play size={32} className="text-muted" />
+                )}
+                {a.type !== "image" && (
+                  <span className="absolute bottom-2 right-2 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded">
+                    {formatDuration(a.duration_seconds)}
+                  </span>
+                )}
+              </div>
+              <div className="p-3">
+                <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
+                <div className="flex items-center justify-between mt-1.5">
+                  <Badge className={assetTypeColors[a.type]}>{a.type}</Badge>
+                  <span className="text-[11px] text-muted">{formatBytes(a.optimized_size_bytes ?? a.size_bytes)}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showUploader && <AssetUploader onClose={() => setShowUploader(false)} />}
+
+      {/* Inspect modal (admin only) */}
+      {inspect && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setInspect(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl w-full max-w-2xl overflow-hidden fade-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="font-display font-semibold text-foreground truncate">{inspect.title}</h3>
+              <button onClick={() => setInspect(null)} className="text-muted hover:text-foreground">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 max-h-[60vh] overflow-auto">
+              <div className="rounded-xl overflow-hidden bg-surface flex items-center justify-center">
+                {inspect.type === "image" && inspect.url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={inspect.url} alt={inspect.title} className="max-h-[40vh] w-auto" />
+                )}
+                {inspect.type === "video" && inspect.url && (
+                  <video src={inspect.url} controls className="max-h-[40vh] w-full" />
+                )}
+                {inspect.type === "audio" && inspect.url && (
+                  <audio src={inspect.url} controls className="w-full m-6" />
+                )}
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-2 mt-5 text-sm">
+                <Meta label="Type" value={inspect.type} />
+                <Meta label="Original" value={inspect.original_filename} />
+                <Meta label="Original size" value={formatBytes(inspect.size_bytes)} />
+                <Meta label="Optimized" value={formatBytes(inspect.optimized_size_bytes)} />
+                {inspect.width && (
+                  <Meta label="Dimensions" value={`${inspect.width} × ${inspect.height}`} />
+                )}
+                {inspect.duration_seconds != null && (
+                  <Meta label="Duration" value={formatDuration(inspect.duration_seconds)} />
+                )}
+                <Meta label="Uploaded" value={formatDate(inspect.created_at)} />
+                <Meta label="Tags" value={inspect.tags.length ? inspect.tags.join(", ") : "—"} />
+              </dl>
+            </div>
+
+            <div className="flex justify-end px-5 py-4 border-t border-border">
+              <button
+                onClick={() => handleDelete(inspect)}
+                disabled={deleting}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm bg-danger/15 text-danger hover:bg-danger/25 font-medium transition-colors disabled:opacity-50"
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Delete asset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-muted text-xs">{label}</dt>
+      <dd className="text-foreground truncate">{value}</dd>
+    </div>
+  );
+}
