@@ -1,7 +1,7 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Service-role Supabase client. SERVER ONLY — this bypasses Row Level Security.
+ * Admin Supabase client using the SECRET key. SERVER ONLY — bypasses Row Level Security.
  *
  * Only use it for trusted privileged operations that have already passed an
  * explicit admin check in a Server Action / Route Handler:
@@ -13,16 +13,16 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  */
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!url || !secretKey) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. " +
-        "The service-role client cannot be created."
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY. " +
+        "The admin (secret-key) client cannot be created."
     );
   }
 
-  return createSupabaseClient(url, serviceRoleKey, {
+  return createSupabaseClient(url, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

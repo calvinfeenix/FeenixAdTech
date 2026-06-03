@@ -34,36 +34,40 @@ Route groups:
 
 ## Local development
 
-### 1. Create a Supabase project
-At [supabase.com](https://supabase.com), create a project. From **Project Settings → API** grab:
+The app uses Supabase Auth + Storage + RLS, so the simplest backend for local
+testing is a **free Supabase cloud project used as your dev environment** — it
+behaves identically to production with no local infrastructure. (For a fully
+offline stack, the Supabase CLI + Docker also works; not covered here.)
+
+### 1. Create a free Supabase project
+At [supabase.com](https://supabase.com) → **New project** (free tier is fine).
+Pick a name like `feenix-adtech-dev`. Once it finishes provisioning, go to
+**Project Settings → API** and copy:
 - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-- `anon` public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (secret!)
+- **Publishable** key (`sb_publishable_…`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- **Secret** key (`sb_secret_…`) → `SUPABASE_SECRET_KEY` (secret — server only!)
 
 ### 2. Apply the schema
-Open **SQL Editor**, paste the contents of [`scripts/schema.sql`](scripts/schema.sql), and run it.
-This creates all tables, RLS policies, helper functions, and the signup trigger.
+Open **SQL Editor → New query**, paste the entire contents of
+[`scripts/schema.sql`](scripts/schema.sql), and **Run**. This creates all tables,
+RLS policies, helper functions, and the signup trigger. (Re-runnable — it's idempotent.)
 
-### 3. Create Storage buckets
-In **Storage**, create two **public** buckets named exactly:
-- `assets`
-- `thumbnails`
-
-(Ad creatives are served to game clients, so public read is appropriate; uploads/deletes
-are performed server-side with the service role after an admin check.)
-
-### 4. Configure env
+### 3. Configure env
 ```bash
 cp .env.example .env.local
-# fill in the four Supabase values + a random INGEST_API_KEY
+# paste the three Supabase values above, set INGEST_API_KEY to any random string
 ```
 
-### 5. Install, seed, run
+### 4. Install, seed, run
 ```bash
 npm install
-npm run seed      # creates the FEENIX admin, demo users, games, campaigns + analytics
+npm run seed      # auto-creates the storage buckets + FEENIX admin, demo users,
+                  # games, campaigns, and 14 days of analytics
 npm run dev       # http://localhost:3000
 ```
+
+> The seed creates the public `assets` and `thumbnails` storage buckets for you —
+> no manual dashboard step needed. (They can also be made by hand under **Storage**.)
 
 ### Default accounts (from the seed)
 | Username | Password | Role | Status |
@@ -83,14 +87,15 @@ npm run dev       # http://localhost:3000
 1. Push this repo to GitHub and **commit `package-lock.json`** (the Docker build runs `npm ci`).
 2. In Railway, create a project from the repo. It auto-detects the **Dockerfile**.
 3. Add the environment variables (Service → **Variables**):
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`,
    `INGEST_API_KEY`, `ADMIN_DEFAULT_PASSWORD`.
    The two `NEXT_PUBLIC_*` values are needed at **build time** (they're inlined into the client bundle).
-4. Deploy. Run the schema + bucket steps against your production Supabase project once,
-   then run the seed locally pointed at production (or sign up + self-approve via SQL).
+4. Create a **separate** Supabase project for production, run `scripts/schema.sql`
+   against it once, then either run `npm run seed` locally pointed at it (to create the
+   admin + buckets) or sign up and self-approve via SQL.
 
-The same external Supabase database backs both local and production — keep a separate
-Supabase project per environment if you want isolation.
+Keep the dev project and the production project separate so test data never mixes with
+real data. Both use the exact same schema and code.
 
 ---
 

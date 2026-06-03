@@ -3,7 +3,7 @@
  * the storage buckets. Idempotent: it re-uses existing auth users and fully
  * rebuilds the demo domain data (games, campaigns, analytics) on each run.
  *
- * Requires SUPABASE_SERVICE_ROLE_KEY (service role) in .env.local.
+ * Requires SUPABASE_SECRET_KEY (the secret API key) in .env.local.
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
@@ -11,15 +11,15 @@ config({ path: ".env.local" });
 import { createClient } from "@supabase/supabase-js";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 const ADMIN_PASSWORD = process.env.ADMIN_DEFAULT_PASSWORD || "feenixgroup0214";
 
-if (!URL || !SERVICE_KEY) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
+if (!URL || !SECRET_KEY) {
+  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY in .env.local");
   process.exit(1);
 }
 
-const db = createClient(URL, SERVICE_KEY, {
+const db = createClient(URL, SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
@@ -46,18 +46,37 @@ async function ensureUser(
 
 async function setProfile(
   id: string,
-  fields: { role?: "user" | "admin"; status?: "pending" | "approved" | "rejected"; username?: string; full_name?: string }
+  fields: {
+    email: string;
+    username: string;
+    full_name: string;
+    role: "user" | "admin";
+    status: "pending" | "approved" | "rejected";
+  }
 ) {
-  // The handle_new_user trigger may run a beat after createUser; retry briefly.
-  for (let i = 0; i < 5; i++) {
-    const { error } = await db.from("profiles").update(fields).eq("id", id);
-    if (!error) return;
-    await new Promise((r) => setTimeout(r, 400));
+  // Upsert (don't rely on the handle_new_user trigger) so the seed is
+  // deterministic even if the profile row doesn't exist yet.
+  const { error } = await db.from("profiles").upsert({ id, ...fields }, { onConflict: "id" });
+  if (error) throw new Error(`profile upsert (${fields.username}): ${error.message}`);
+}
+
+/** Create the public storage buckets the app needs (idempotent). */
+async function ensureBuckets() {
+  for (const id of ["assets", "thumbnails"]) {
+    const { error } = await db.storage.createBucket(id, { public: true });
+    if (error && !/already exists/i.test(error.message)) {
+      console.warn(`  ! bucket "${id}": ${error.message}`);
+    } else {
+      console.log(`  ✓ Bucket ${id} (public)`);
+    }
   }
 }
 
 async function main() {
   console.log("→ Seeding Feenix AdTech…");
+
+  // ── Storage buckets ──────────────────────────────────────────────────
+  await ensureBuckets();
 
   // ── Users ────────────────────────────────────────────────────────────
   const adminId = await ensureUser(
@@ -66,7 +85,13 @@ async function main() {
     "FEENIX",
     "Feenix Admin"
   );
-  await setProfile(adminId, { role: "admin", status: "approved", username: "FEENIX", full_name: "Feenix Admin" });
+  await setProfile(adminId, {
+    email: "feenix-admin@feenixadtech.app",
+    username: "FEENIX",
+    full_name: "Feenix Admin",
+    role: "admin",
+    status: "approved",
+  });
   console.log(`  ✓ Admin  FEENIX  (password: ${ADMIN_PASSWORD})`);
 
   const demoUsers = [
@@ -77,7 +102,13 @@ async function main() {
   const userIds: Record<string, string> = {};
   for (const u of demoUsers) {
     const id = await ensureUser(u.email, "password123", u.username, u.full);
-    await setProfile(id, { role: "user", status: u.status, username: u.username, full_name: u.full });
+    await setProfile(id, {
+      email: u.email,
+      username: u.username,
+      full_name: u.full,
+      role: "user",
+      status: u.status,
+    });
     userIds[u.username] = id;
     console.log(`  ✓ User   ${u.username} (${u.status})`);
   }

@@ -49,53 +49,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ────────────────────────────────────────────────────────────────────────
--- RLS HELPER FUNCTIONS  (SECURITY DEFINER → no policy recursion)
--- ────────────────────────────────────────────────────────────────────────
-create or replace function public.is_admin()
-returns boolean language sql security definer set search_path = public stable as $$
-  select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and role = 'admin' and status = 'approved'
-  );
-$$;
-
-create or replace function public.is_approved()
-returns boolean language sql security definer set search_path = public stable as $$
-  select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and status = 'approved'
-  );
-$$;
-
-create or replace function public.can_access_campaign(cid uuid)
-returns boolean language sql security definer set search_path = public stable as $$
-  select public.is_admin() or exists (
-    select 1 from public.campaign_users
-    where campaign_id = cid and user_id = auth.uid()
-  );
-$$;
-
--- A game is readable by a user if they're assigned to a campaign that targets it
--- (so analytics can show game names) — the Games management tab is still gated to
--- admins at the route level.
-create or replace function public.can_access_game(gid uuid)
-returns boolean language sql security definer set search_path = public stable as $$
-  select public.is_admin() or exists (
-    select 1 from public.campaign_games cg
-    join public.campaign_users cu on cu.campaign_id = cg.campaign_id
-    where cg.game_id = gid and cu.user_id = auth.uid()
-  );
-$$;
-
-create or replace function public.can_access_location(lid uuid)
-returns boolean language sql security definer set search_path = public stable as $$
-  select public.is_admin() or exists (
-    select 1 from public.campaign_locations cl
-    join public.campaign_users cu on cu.campaign_id = cl.campaign_id
-    where cl.game_location_id = lid and cu.user_id = auth.uid()
-  );
-$$;
+-- NOTE: RLS helper functions are defined AFTER the tables below, because
+-- SQL-language functions are validated at creation time and these reference
+-- tables (campaign_users, campaign_games, …) declared further down.
 
 -- ────────────────────────────────────────────────────────────────────────
 -- ASSETS
@@ -196,6 +152,55 @@ create table if not exists analytics_events (
 );
 create index if not exists idx_analytics_campaign_ts on analytics_events(campaign_id, ts);
 create index if not exists idx_analytics_game on analytics_events(game_id);
+
+-- ════════════════════════════════════════════════════════════════════════
+-- RLS HELPER FUNCTIONS  (SECURITY DEFINER → no policy recursion)
+-- Defined here, after all tables exist, so the SQL bodies validate cleanly.
+-- ════════════════════════════════════════════════════════════════════════
+create or replace function public.is_admin()
+returns boolean language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin' and status = 'approved'
+  );
+$$;
+
+create or replace function public.is_approved()
+returns boolean language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and status = 'approved'
+  );
+$$;
+
+create or replace function public.can_access_campaign(cid uuid)
+returns boolean language sql security definer set search_path = public stable as $$
+  select public.is_admin() or exists (
+    select 1 from public.campaign_users
+    where campaign_id = cid and user_id = auth.uid()
+  );
+$$;
+
+-- A game is readable by a user if they're assigned to a campaign that targets it
+-- (so analytics can show game names) — the Games management tab is still gated to
+-- admins at the route level.
+create or replace function public.can_access_game(gid uuid)
+returns boolean language sql security definer set search_path = public stable as $$
+  select public.is_admin() or exists (
+    select 1 from public.campaign_games cg
+    join public.campaign_users cu on cu.campaign_id = cg.campaign_id
+    where cg.game_id = gid and cu.user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.can_access_location(lid uuid)
+returns boolean language sql security definer set search_path = public stable as $$
+  select public.is_admin() or exists (
+    select 1 from public.campaign_locations cl
+    join public.campaign_users cu on cu.campaign_id = cl.campaign_id
+    where cl.game_location_id = lid and cu.user_id = auth.uid()
+  );
+$$;
 
 -- ════════════════════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY
