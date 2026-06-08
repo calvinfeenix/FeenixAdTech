@@ -17,6 +17,15 @@ export interface Profile {
 
 export type AssetType = "image" | "video" | "audio";
 
+export type RobloxStatus =
+  | "not_published"
+  | "uploading"
+  | "processing"
+  | "reviewing"
+  | "approved"
+  | "rejected"
+  | "failed";
+
 export interface Asset {
   id: string;
   created_at: string;
@@ -33,9 +42,21 @@ export interface Asset {
   height: number | null;
   duration_seconds: number | null;
   tags: string[];
+  // Roblox Open Cloud publishing state
+  roblox_status: RobloxStatus;
+  roblox_asset_id: number | null;
+  roblox_operation_id: string | null;
+  roblox_error: string | null;
+  roblox_synced_at: string | null;
   // Populated at read time (signed/public URLs), not stored in the table.
   url?: string;
   thumb_url?: string;
+}
+
+export interface AppSettings {
+  keyConfigured: boolean;
+  keyLast4: string | null;
+  creatorUserId: number | null;
 }
 
 export type GameStatus = "active" | "inactive";

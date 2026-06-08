@@ -302,3 +302,31 @@ create policy analytics_select on analytics_events for select
 -- server-side with the service role after an admin check, and in-app access
 -- control is enforced by the `assets` table policies above.
 -- ════════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════════
+-- ROBLOX OPEN CLOUD PUBLISHING
+-- Adds per-asset Roblox publish/moderation tracking + a service-role-only
+-- settings table for the shared Open Cloud API key & creator account.
+-- ════════════════════════════════════════════════════════════════════════
+
+-- Per-asset Roblox state (idempotent — `assets` already exists).
+alter table assets add column if not exists roblox_status text not null default 'not_published'
+  check (roblox_status in ('not_published','uploading','processing','reviewing','approved','rejected','failed'));
+alter table assets add column if not exists roblox_asset_id bigint;
+alter table assets add column if not exists roblox_operation_id text;
+alter table assets add column if not exists roblox_error text;
+alter table assets add column if not exists roblox_synced_at timestamptz;
+
+-- Singleton org settings. The Open Cloud API key lives here. RLS is enabled
+-- with NO policies, so the anon/publishable client can never read it — only the
+-- service role (server actions) touches this table.
+create table if not exists app_settings (
+  id                      text primary key default 'global',
+  roblox_api_key          text,
+  roblox_creator_user_id  bigint,
+  updated_at              timestamptz not null default now(),
+  updated_by              uuid references profiles(id) on delete set null
+);
+alter table app_settings enable row level security;
+-- (intentionally no policies — service-role only)
+insert into app_settings (id) values ('global') on conflict (id) do nothing;

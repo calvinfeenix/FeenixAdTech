@@ -11,6 +11,9 @@ import {
   Play,
   Loader2,
   Images,
+  UploadCloud,
+  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/components/toast";
 import EmptyState from "@/components/empty-state";
@@ -21,8 +24,19 @@ import {
   formatBytes,
   formatDate,
   formatDuration,
+  robloxStatusColors,
+  robloxStatusLabels,
 } from "@/lib/utils";
-import type { Asset, AssetType } from "@/lib/types";
+import { publishAssetToRoblox, refreshRobloxStatus } from "@/app/(app)/assets/actions";
+import type { Asset, AssetType, RobloxStatus } from "@/lib/types";
+
+const DOT_COLOR: Partial<Record<RobloxStatus, string>> = {
+  approved: "bg-emerald-400",
+  reviewing: "bg-amber-400",
+  processing: "bg-sky-400",
+  rejected: "bg-red-400",
+  failed: "bg-red-400",
+};
 
 const TYPES: (AssetType | "all")[] = ["all", "image", "video", "audio"];
 
@@ -40,6 +54,8 @@ export default function AssetGallery({
   const [showUploader, setShowUploader] = useState(false);
   const [inspect, setInspect] = useState<Asset | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [robloxBusy, setRobloxBusy] = useState(false);
+  const [waitMsg, setWaitMsg] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -69,6 +85,65 @@ export default function AssetGallery({
     } finally {
       setDeleting(false);
     }
+  }
+
+  const RESOLVED: RobloxStatus[] = ["approved", "rejected", "failed"];
+
+  async function onPublish(a: Asset) {
+    setRobloxBusy(true);
+    setWaitMsg("Submitting to Roblox…");
+    const res = await publishAssetToRoblox(a.id);
+    if (res.error) {
+      setRobloxBusy(false);
+      setWaitMsg(null);
+      setInspect((p) => (p ? { ...p, roblox_status: "failed", roblox_error: res.error! } : p));
+      return toast(res.error, "error");
+    }
+
+    let status = res.status!;
+    setInspect((p) =>
+      p ? { ...p, roblox_status: status, roblox_error: null, roblox_asset_id: res.robloxAssetId ?? p.roblox_asset_id } : p
+    );
+
+    // Smart wait: poll moderation for up to 30s so a fast Approve/Reject shows
+    // instantly. If it's still under review after 30s, tell the admin to come
+    // back rather than spinning forever.
+    setWaitMsg("Please wait — Roblox is moderating this asset…");
+    const start = Date.now();
+    while (!RESOLVED.includes(status) && Date.now() - start < 30_000) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const r2 = await refreshRobloxStatus(a.id);
+      if (r2.error || !r2.status) break;
+      status = r2.status;
+      setInspect((p) =>
+        p ? { ...p, roblox_status: status, roblox_asset_id: r2.robloxAssetId ?? p.roblox_asset_id } : p
+      );
+    }
+
+    setRobloxBusy(false);
+    if (RESOLVED.includes(status)) {
+      setWaitMsg(null);
+      toast(
+        `Roblox: ${robloxStatusLabels[status]}`,
+        status === "approved" ? "success" : status === "rejected" ? "error" : "info"
+      );
+    } else {
+      setWaitMsg("Still in review on Roblox — come back in a few minutes and hit Re-check.");
+      toast("Submitted — still under review on Roblox.", "info");
+    }
+    router.refresh();
+  }
+
+  async function onRefresh(a: Asset) {
+    setRobloxBusy(true);
+    const res = await refreshRobloxStatus(a.id);
+    setRobloxBusy(false);
+    if (res.error) return toast(res.error, "error");
+    toast(`Status: ${robloxStatusLabels[res.status!]}`, res.status === "rejected" ? "error" : "success");
+    setInspect((p) =>
+      p ? { ...p, roblox_status: res.status!, roblox_asset_id: res.robloxAssetId ?? p.roblox_asset_id } : p
+    );
+    router.refresh();
   }
 
   return (
@@ -127,7 +202,12 @@ export default function AssetGallery({
           {filtered.map((a) => (
             <button
               key={a.id}
-              onClick={() => isAdmin && setInspect(a)}
+              onClick={() => {
+                if (isAdmin) {
+                  setWaitMsg(null);
+                  setInspect(a);
+                }
+              }}
               className={`group text-left bg-card border border-border rounded-xl overflow-hidden transition-colors ${
                 isAdmin ? "hover:border-border-strong cursor-pointer" : "cursor-default"
               }`}
@@ -151,6 +231,12 @@ export default function AssetGallery({
                     {formatDuration(a.duration_seconds)}
                   </span>
                 )}
+                {DOT_COLOR[a.roblox_status] && (
+                  <span
+                    title={`Roblox: ${robloxStatusLabels[a.roblox_status]}`}
+                    className={`absolute top-2 left-2 w-2.5 h-2.5 rounded-full ring-2 ring-black/50 ${DOT_COLOR[a.roblox_status]}`}
+                  />
+                )}
               </div>
               <div className="p-3">
                 <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
@@ -170,7 +256,10 @@ export default function AssetGallery({
       {inspect && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setInspect(null)}
+          onClick={() => {
+            setInspect(null);
+            setWaitMsg(null);
+          }}
         >
           <div
             className="bg-card border border-border rounded-2xl w-full max-w-2xl overflow-hidden fade-up"
@@ -211,9 +300,78 @@ export default function AssetGallery({
                 <Meta label="Uploaded" value={formatDate(inspect.created_at)} />
                 <Meta label="Tags" value={inspect.tags.length ? inspect.tags.join(", ") : "—"} />
               </dl>
+
+              {/* Roblox publishing */}
+              <div className="mt-5 border-t border-border pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">Roblox</span>
+                  <Badge className={robloxStatusColors[inspect.roblox_status]}>
+                    {robloxStatusLabels[inspect.roblox_status]}
+                  </Badge>
+                </div>
+                {inspect.roblox_asset_id && (
+                  <a
+                    href={`https://create.roblox.com/store/asset/${inspect.roblox_asset_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline mt-2"
+                  >
+                    Asset ID {inspect.roblox_asset_id} <ExternalLink size={12} />
+                  </a>
+                )}
+                {inspect.roblox_error && (
+                  <p className="text-xs text-danger mt-2">{inspect.roblox_error}</p>
+                )}
+                {robloxBusy && waitMsg && (
+                  <p className="flex items-center gap-2 text-xs text-accent mt-2">
+                    <Loader2 size={12} className="animate-spin" /> {waitMsg}
+                  </p>
+                )}
+                {!robloxBusy && waitMsg && (
+                  <p className="text-xs text-amber-400 mt-2">{waitMsg}</p>
+                )}
+                {inspect.type === "video" && (
+                  <p className="text-xs text-muted mt-2">
+                    Video can&apos;t be published to Roblox — images and audio only.
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="flex justify-end px-5 py-4 border-t border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                {inspect.type !== "video" &&
+                  ["not_published", "failed", "rejected"].includes(inspect.roblox_status) && (
+                    <button
+                      onClick={() => onPublish(inspect)}
+                      disabled={robloxBusy}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-accent hover:bg-accent-hover text-black font-semibold transition-all duration-200 hover:shadow-[0_4px_20px_-4px_var(--accent)] active:scale-95 disabled:opacity-50"
+                    >
+                      {robloxBusy ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                      {inspect.roblox_status === "not_published" ? "Publish to Roblox" : "Retry publish"}
+                    </button>
+                  )}
+                {["processing", "reviewing", "uploading"].includes(inspect.roblox_status) && (
+                  <button
+                    onClick={() => onRefresh(inspect)}
+                    disabled={robloxBusy}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm bg-white/5 text-muted-strong hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    {robloxBusy ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    Re-check status
+                  </button>
+                )}
+                {inspect.roblox_status === "approved" && (
+                  <button
+                    onClick={() => onRefresh(inspect)}
+                    disabled={robloxBusy}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    {robloxBusy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    Re-check
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => handleDelete(inspect)}
                 disabled={deleting}

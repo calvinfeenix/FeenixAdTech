@@ -8,6 +8,7 @@ import {
   Images,
   Gamepad2,
   Users,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { Wordmark } from "./logo";
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { href: "/assets", label: "Assets", icon: Images },
   { href: "/games", label: "Games", icon: Gamepad2, adminOnly: true },
   { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];
 
 export default function Sidebar({ role }: { role: UserRole }) {

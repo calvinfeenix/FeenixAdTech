@@ -2,6 +2,7 @@ import type {
   AssetType,
   CampaignStatus,
   GameStatus,
+  RobloxStatus,
   UserRole,
   UserStatus,
 } from "./types";
@@ -34,6 +35,26 @@ export const assetTypeColors: Record<AssetType, string> = {
   image: "bg-sky-500/15 text-sky-400",
   video: "bg-violet-500/15 text-violet-400",
   audio: "bg-pink-500/15 text-pink-400",
+};
+
+export const robloxStatusColors: Record<RobloxStatus, string> = {
+  not_published: "bg-white/8 text-muted",
+  uploading: "bg-sky-500/15 text-sky-400",
+  processing: "bg-sky-500/15 text-sky-400",
+  reviewing: "bg-amber-500/15 text-amber-400",
+  approved: "bg-emerald-500/15 text-emerald-400",
+  rejected: "bg-red-500/15 text-red-400",
+  failed: "bg-red-500/15 text-red-400",
+};
+
+export const robloxStatusLabels: Record<RobloxStatus, string> = {
+  not_published: "Not on Roblox",
+  uploading: "Uploading…",
+  processing: "Processing…",
+  reviewing: "In review",
+  approved: "Approved",
+  rejected: "Rejected",
+  failed: "Failed",
 };
 
 export function formatDate(date: string | null): string {
