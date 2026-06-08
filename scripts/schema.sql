@@ -330,3 +330,22 @@ create table if not exists app_settings (
 alter table app_settings enable row level security;
 -- (intentionally no policies — service-role only)
 insert into app_settings (id) values ('global') on conflict (id) do nothing;
+
+-- ════════════════════════════════════════════════════════════════════════
+-- DYNAMIC LOCATIONS + INTERACTIVE ACTIONS
+-- Supports the Roblox handler auto-registering ad locations, and tying a
+-- campaign's creative to an in-game interaction (proximity prompt → click).
+-- ════════════════════════════════════════════════════════════════════════
+
+-- Unique key so the Roblox handler can idempotently register locations by
+-- (game, external_ref). Postgres treats NULLs as distinct, so manually-created
+-- locations with a null external_ref are unaffected.
+create unique index if not exists ux_game_locations_game_ref
+  on game_locations(game_id, external_ref);
+
+-- Optional per-(campaign,asset) interaction. action_type null = passive ad.
+alter table campaign_assets add column if not exists action_type text
+  check (action_type is null or action_type in ('proximity'));
+alter table campaign_assets add column if not exists action_text text;
+alter table campaign_assets add column if not exists action_max_distance integer;
+alter table campaign_assets add column if not exists action_hold_duration numeric(5,2);

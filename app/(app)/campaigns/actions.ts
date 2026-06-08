@@ -5,6 +5,12 @@ import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import type { CampaignStatus } from "@/lib/types";
 
+export interface CreativeAction {
+  actionText: string;
+  maxDistance: number;
+  holdDuration: number;
+}
+
 export interface CampaignInput {
   name: string;
   status: CampaignStatus;
@@ -14,6 +20,8 @@ export interface CampaignInput {
   assetIds: string[];
   gameIds: string[];
   locationIds: string[];
+  /** Optional per-asset interaction; presence makes that creative clickable. */
+  actions: Record<string, CreativeAction>;
 }
 
 interface ActionResult {
@@ -53,9 +61,19 @@ async function syncAssignments(
   if (input.assetIds.length)
     inserts.push(
       Promise.resolve(
-        supabase
-          .from("campaign_assets")
-          .insert(input.assetIds.map((asset_id) => ({ campaign_id: campaignId, asset_id })))
+        supabase.from("campaign_assets").insert(
+          input.assetIds.map((asset_id) => {
+            const a = input.actions?.[asset_id];
+            return {
+              campaign_id: campaignId,
+              asset_id,
+              action_type: a ? "proximity" : null,
+              action_text: a ? a.actionText || "Interact" : null,
+              action_max_distance: a ? a.maxDistance : null,
+              action_hold_duration: a ? a.holdDuration : null,
+            };
+          })
+        )
       )
     );
   if (input.gameIds.length)

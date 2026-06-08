@@ -9,6 +9,7 @@ import {
   createCampaign,
   updateCampaign,
   type CampaignInput,
+  type CreativeAction,
 } from "@/app/(app)/campaigns/actions";
 import type { Asset, CampaignStatus, Game, Profile } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export interface CampaignFormInitial {
   assetIds: string[];
   gameIds: string[];
   locationIds: string[];
+  actions?: Record<string, CreativeAction>;
 }
 
 export default function CampaignForm({
@@ -48,8 +50,27 @@ export default function CampaignForm({
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set(initial?.assetIds ?? []));
   const [locationIds, setLocationIds] = useState<Set<string>>(new Set(initial?.locationIds ?? []));
   const [gameIds, setGameIds] = useState<Set<string>>(new Set(initial?.gameIds ?? []));
+  const [actions, setActions] = useState<Record<string, CreativeAction>>(initial?.actions ?? {});
   const [userQuery, setUserQuery] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const selectedAssets = useMemo(
+    () => assets.filter((a) => assetIds.has(a.id)),
+    [assets, assetIds]
+  );
+
+  function toggleAction(assetId: string) {
+    setActions((prev) => {
+      const next = { ...prev };
+      if (next[assetId]) delete next[assetId];
+      else next[assetId] = { actionText: "Interact", maxDistance: 20, holdDuration: 0 };
+      return next;
+    });
+  }
+
+  function patchAction(assetId: string, patch: Partial<CreativeAction>) {
+    setActions((prev) => ({ ...prev, [assetId]: { ...prev[assetId], ...patch } }));
+  }
 
   const filteredUsers = useMemo(() => {
     const q = userQuery.trim().toLowerCase();
@@ -89,6 +110,10 @@ export default function CampaignForm({
       assetIds: [...assetIds],
       gameIds: [...gameIds],
       locationIds: [...locationIds],
+      // Only keep actions for assets still selected.
+      actions: Object.fromEntries(
+        Object.entries(actions).filter(([assetId]) => assetIds.has(assetId))
+      ),
     };
     const res = initial ? await updateCampaign(initial.id, input) : await createCampaign(input);
     setSaving(false);
@@ -219,6 +244,68 @@ export default function CampaignForm({
           </div>
         )}
       </Section>
+
+      {/* Interactive actions (per selected creative) */}
+      {selectedAssets.length > 0 && (
+        <Section
+          title="Interactive actions"
+          subtitle="Optionally make a creative clickable in-game. The Roblox handler shows a proximity prompt; an interaction counts as a click (CTR)."
+        >
+          <div className="space-y-2">
+            {selectedAssets.map((a) => {
+              const action = actions[a.id];
+              return (
+                <div key={a.id} className="bg-surface border border-border rounded-lg px-3 py-2.5">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!action}
+                      onChange={() => toggleAction(a.id)}
+                      className="accent-[var(--accent)] w-4 h-4"
+                    />
+                    <span className="text-sm text-foreground">{a.title}</span>
+                    <span className="text-xs text-muted ml-auto">
+                      {action ? "Clickable" : "Passive"}
+                    </span>
+                  </label>
+                  {action && (
+                    <div className="grid sm:grid-cols-3 gap-3 mt-3 pl-7">
+                      <label className="block">
+                        <span className="text-xs text-muted">Action text</span>
+                        <input
+                          value={action.actionText}
+                          onChange={(e) => patchAction(a.id, { actionText: e.target.value })}
+                          placeholder="Interact"
+                          className="mt-1 w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs text-muted">Max distance (studs)</span>
+                        <input
+                          type="number"
+                          value={action.maxDistance}
+                          onChange={(e) => patchAction(a.id, { maxDistance: Number(e.target.value) })}
+                          className="mt-1 w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs text-muted">Hold time (s)</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={action.holdDuration}
+                          onChange={(e) => patchAction(a.id, { holdDuration: Number(e.target.value) })}
+                          className="mt-1 w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:border-accent focus:outline-none"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      )}
 
       {/* Games + locations */}
       <Section

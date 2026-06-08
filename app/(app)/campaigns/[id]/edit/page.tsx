@@ -23,7 +23,10 @@ export default async function EditCampaignPage({
     supabase.from("assets").select("*").order("created_at", { ascending: false }),
     supabase.from("games").select("*, locations:game_locations(*)").order("name"),
     supabase.from("campaign_users").select("user_id").eq("campaign_id", id),
-    supabase.from("campaign_assets").select("asset_id").eq("campaign_id", id),
+    supabase
+      .from("campaign_assets")
+      .select("asset_id, action_type, action_text, action_max_distance, action_hold_duration")
+      .eq("campaign_id", id),
     supabase.from("campaign_games").select("game_id").eq("campaign_id", id),
     supabase.from("campaign_locations").select("game_location_id").eq("campaign_id", id),
   ]);
@@ -35,6 +38,25 @@ export default async function EditCampaignPage({
   }));
   const games = (gamesRes.data ?? []) as Game[];
 
+  type CaRow = {
+    asset_id: string;
+    action_type: string | null;
+    action_text: string | null;
+    action_max_distance: number | null;
+    action_hold_duration: number | null;
+  };
+  const caData = (caRes.data ?? []) as CaRow[];
+  const actions: Record<string, { actionText: string; maxDistance: number; holdDuration: number }> = {};
+  for (const r of caData) {
+    if (r.action_type === "proximity") {
+      actions[r.asset_id] = {
+        actionText: r.action_text ?? "Interact",
+        maxDistance: r.action_max_distance ?? 20,
+        holdDuration: r.action_hold_duration ?? 0,
+      };
+    }
+  }
+
   const initial: CampaignFormInitial = {
     id: c.id,
     name: c.name,
@@ -42,9 +64,10 @@ export default async function EditCampaignPage({
     flight_start: c.flight_start,
     flight_end: c.flight_end,
     userIds: (cuRes.data ?? []).map((r) => (r as { user_id: string }).user_id),
-    assetIds: (caRes.data ?? []).map((r) => (r as { asset_id: string }).asset_id),
+    assetIds: caData.map((r) => r.asset_id),
     gameIds: (cgRes.data ?? []).map((r) => (r as { game_id: string }).game_id),
     locationIds: (clRes.data ?? []).map((r) => (r as { game_location_id: string }).game_location_id),
+    actions,
   };
 
   return (

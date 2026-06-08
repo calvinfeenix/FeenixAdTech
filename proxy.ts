@@ -61,6 +61,6 @@ export const config = {
   // Run on everything except static assets, the public game APIs
   // (ingest + serve are authed by x-api-key, not a session), and image files.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/ingest|api/serve|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/ingest|api/serve|api/locations|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

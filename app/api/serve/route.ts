@@ -77,18 +77,40 @@ export async function GET(request: Request) {
   if (!locations?.length) return new NextResponse(null, { status: 204 });
   const locIds = new Set(locations.map((l) => l.id));
 
-  // Approved, Roblox-ready creatives for those campaigns.
+  // Approved, Roblox-ready creatives for those campaigns, with any interaction.
   const { data: caRows } = await admin
     .from("campaign_assets")
-    .select("campaign_id, assets!inner(id, title, type, roblox_asset_id, roblox_status)")
+    .select(
+      "campaign_id, action_type, action_text, action_max_distance, action_hold_duration, assets!inner(id, title, type, roblox_asset_id, roblox_status)"
+    )
     .in("campaign_id", campaignIds)
     .eq("assets.roblox_status", "approved");
   type A = { id: string; title: string; type: string; roblox_asset_id: number | null; roblox_status: string };
-  const creativesByCampaign = new Map<string, A[]>();
-  for (const r of (caRows ?? []) as unknown as { campaign_id: string; assets: A }[]) {
+  type CARow = {
+    campaign_id: string;
+    action_type: string | null;
+    action_text: string | null;
+    action_max_distance: number | null;
+    action_hold_duration: number | null;
+    assets: A;
+  };
+  type Creative = A & { action?: object };
+  const creativesByCampaign = new Map<string, Creative[]>();
+  for (const r of (caRows ?? []) as unknown as CARow[]) {
     if (!r.assets?.roblox_asset_id) continue;
+    const action =
+      r.action_type === "proximity"
+        ? {
+            type: "proximity",
+            actionText: r.action_text || "Interact",
+            objectText: "Advertisement",
+            maxActivationDistance: r.action_max_distance ?? 20,
+            holdDuration: r.action_hold_duration ?? 0,
+            requiresLineOfSight: false,
+          }
+        : undefined;
     const arr = creativesByCampaign.get(r.campaign_id) ?? [];
-    arr.push(r.assets);
+    arr.push({ ...r.assets, action });
     creativesByCampaign.set(r.campaign_id, arr);
   }
 
@@ -116,6 +138,7 @@ export async function GET(request: Request) {
             title: a.title,
             campaignId: cl.campaign_id,
             campaignName: campaignName.get(cl.campaign_id),
+            ...(a.action ? { action: a.action } : {}),
           });
         }
       }
