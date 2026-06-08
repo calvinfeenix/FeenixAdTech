@@ -42,9 +42,9 @@ export async function POST(request: Request) {
   }
 
   const type = assetTypeFromMime(file.type);
-  if (!type) {
+  if (!type || type === "audio") {
     return NextResponse.json(
-      { error: "Unsupported file type. Use an image, video, or audio file." },
+      { error: "Unsupported file type. Use an image or video." },
       { status: 415 }
     );
   }

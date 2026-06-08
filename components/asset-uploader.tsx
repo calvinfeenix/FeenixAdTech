@@ -63,8 +63,9 @@ export default function AssetUploader({ onClose }: { onClose: () => void }) {
 
   function pick(f: File | null) {
     if (!f) return;
-    if (!assetTypeFromMime(f.type)) {
-      toast("Unsupported file type. Use image, video, or audio.", "error");
+    const t = assetTypeFromMime(f.type);
+    if (!t || t === "audio") {
+      toast("Unsupported file type. Use an image or video.", "error");
       return;
     }
     setFile(f);
@@ -140,13 +141,13 @@ export default function AssetUploader({ onClose }: { onClose: () => void }) {
             <div className="text-muted">
               <UploadCloud size={28} className="mx-auto mb-2 text-accent" />
               <p className="text-sm">Drop a file here, or click to browse</p>
-              <p className="text-xs mt-1">Images, video, audio · up to 100 MB</p>
+              <p className="text-xs mt-1">Images and video · up to 100 MB</p>
             </div>
           )}
           <input
             ref={inputRef}
             type="file"
-            accept="image/*,video/*,audio/*"
+            accept="image/*,video/*"
             className="hidden"
             onChange={(e) => pick(e.target.files?.[0] ?? null)}
           />

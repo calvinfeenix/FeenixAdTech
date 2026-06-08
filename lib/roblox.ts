@@ -191,6 +191,29 @@ export async function validateKey(apiKey: string): Promise<{ ok: boolean; messag
   }
 }
 
+/**
+ * Resolve the underlying Texture ID from a Decal asset ID. Open Cloud uploads
+ * images as Decals, but ImageLabel.Image / Decal.Texture need the Texture ID
+ * (what Roblox's "Copy Texture ID" gives). Best-effort: returns null on failure,
+ * in which case the admin can paste the Texture ID manually.
+ */
+export async function resolveTextureId(decalId: number): Promise<number | null> {
+  try {
+    const res = await fetch(`https://assetdelivery.roblox.com/v1/asset/?id=${decalId}`, {
+      headers: { "User-Agent": "Roblox/WinInet" },
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
+    const xml = await res.text();
+    // Decal XML embeds its texture as <Content name="Texture">…id=NNN…</Content>.
+    const m = xml.match(/Texture[\s\S]{0,200}?(?:\?id=|rbxassetid:\/\/)(\d+)/i);
+    const id = m ? Number(m[1]) : null;
+    return id && id > 0 && id !== decalId ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Map an internal moderation/operation outcome to our asset roblox_status. */
 export function outcomeToStatus(o: RobloxOutcome): "processing" | "reviewing" | "approved" | "rejected" {
   if (!o.done) return "processing";

@@ -27,7 +27,7 @@ import {
   robloxStatusColors,
   robloxStatusLabels,
 } from "@/lib/utils";
-import { publishAssetToRoblox, refreshRobloxStatus } from "@/app/(app)/assets/actions";
+import { publishAssetToRoblox, refreshRobloxStatus, setRobloxAssetIdManually } from "@/app/(app)/assets/actions";
 import type { Asset, AssetType, RobloxStatus } from "@/lib/types";
 
 const DOT_COLOR: Partial<Record<RobloxStatus, string>> = {
@@ -38,7 +38,7 @@ const DOT_COLOR: Partial<Record<RobloxStatus, string>> = {
   failed: "bg-red-400",
 };
 
-const TYPES: (AssetType | "all")[] = ["all", "image", "video", "audio"];
+const TYPES: (AssetType | "all")[] = ["all", "image", "video"];
 
 export default function AssetGallery({
   assets,
@@ -56,6 +56,7 @@ export default function AssetGallery({
   const [deleting, setDeleting] = useState(false);
   const [robloxBusy, setRobloxBusy] = useState(false);
   const [waitMsg, setWaitMsg] = useState<string | null>(null);
+  const [manualId, setManualId] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -146,6 +147,19 @@ export default function AssetGallery({
     router.refresh();
   }
 
+  async function onSetManualId(a: Asset) {
+    const id = Number(manualId.trim());
+    if (!Number.isInteger(id) || id <= 0) return toast("Enter a valid numeric Roblox asset ID.", "error");
+    setRobloxBusy(true);
+    const res = await setRobloxAssetIdManually(a.id, id);
+    setRobloxBusy(false);
+    if (res.error) return toast(res.error, "error");
+    toast("Roblox asset ID set — approved", "success");
+    setManualId("");
+    setInspect((p) => (p ? { ...p, roblox_status: "approved", roblox_asset_id: id, roblox_error: null } : p));
+    router.refresh();
+  }
+
   return (
     <div className="space-y-5">
       {/* Toolbar */}
@@ -205,6 +219,7 @@ export default function AssetGallery({
               onClick={() => {
                 if (isAdmin) {
                   setWaitMsg(null);
+                  setManualId("");
                   setInspect(a);
                 }
               }}
@@ -332,9 +347,27 @@ export default function AssetGallery({
                 )}
                 {inspect.type === "video" && (
                   <p className="text-xs text-muted mt-2">
-                    Video can&apos;t be published to Roblox — images and audio only.
+                    Roblox doesn&apos;t allow video upload via Open Cloud. Upload the video through
+                    Roblox, then paste its asset ID below to serve it on VideoFrames.
                   </p>
                 )}
+                {/* Manual Roblox asset ID — required for video, optional reuse for image/audio */}
+                <div className="flex items-center gap-2 mt-3">
+                  <input
+                    value={manualId}
+                    onChange={(e) => setManualId(e.target.value)}
+                    placeholder="Roblox Texture ID (use Copy Texture ID)"
+                    inputMode="numeric"
+                    className="flex-1 bg-surface border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none"
+                  />
+                  <button
+                    onClick={() => onSetManualId(inspect)}
+                    disabled={robloxBusy}
+                    className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-muted-strong hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    Set ID
+                  </button>
+                </div>
               </div>
             </div>
 

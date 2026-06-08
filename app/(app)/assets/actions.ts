@@ -11,6 +11,7 @@ import {
   fetchModeration,
   outcomeToStatus,
   pollOperation,
+  resolveTextureId,
   uploadAsset,
   type RobloxAssetType,
 } from "@/lib/roblox";
@@ -42,6 +43,28 @@ async function persist(
     .from("assets")
     .update({ ...fields, roblox_synced_at: new Date().toISOString() })
     .eq("id", assetId);
+}
+
+/**
+ * Manually attach a Roblox asset ID and mark the asset approved. This is the
+ * path for VIDEO (Open Cloud can't upload video — you upload it via Roblox's own
+ * pipeline, then paste the asset ID here) and for reusing an asset that already
+ * exists on Roblox.
+ */
+export async function setRobloxAssetIdManually(
+  assetId: string,
+  robloxAssetId: number
+): Promise<ActionResult> {
+  if (!(await assertAdmin())) return { error: "Forbidden" };
+  if (!Number.isInteger(robloxAssetId) || robloxAssetId <= 0)
+    return { error: "Enter a valid numeric Roblox asset ID." };
+  await persist(assetId, {
+    roblox_status: "approved",
+    roblox_asset_id: robloxAssetId,
+    roblox_operation_id: null,
+    roblox_error: null,
+  });
+  return { ok: true, status: "approved", robloxAssetId };
 }
 
 /**
@@ -109,15 +132,23 @@ export async function publishAssetToRoblox(assetId: string): Promise<ActionResul
       tries++;
     }
 
+    // Images upload as Decals, but ImageLabel needs the Texture ID — resolve it
+    // so the served asset actually renders (falls back to the decal id).
+    let finalAssetId = outcome.assetId ?? null;
+    if (asset.type === "image" && finalAssetId) {
+      const tex = await resolveTextureId(finalAssetId);
+      if (tex) finalAssetId = tex;
+    }
+
     const status = outcomeToStatus(outcome);
     await persist(assetId, {
       roblox_status: status,
-      roblox_asset_id: outcome.assetId ?? null,
+      roblox_asset_id: finalAssetId,
       roblox_operation_id: outcome.done ? null : outcome.operationId ?? null,
       roblox_error: null,
     });
     revalidatePath("/assets");
-    return { ok: true, status, robloxAssetId: outcome.assetId ?? null };
+    return { ok: true, status, robloxAssetId: finalAssetId };
   } catch (e) {
     const message = e instanceof RobloxError ? e.message : `Upload failed: ${(e as Error).message}`;
     await persist(assetId, { roblox_status: "failed", roblox_error: message });
