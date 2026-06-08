@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -57,6 +57,20 @@ export default function AssetGallery({
   const [robloxBusy, setRobloxBusy] = useState(false);
   const [waitMsg, setWaitMsg] = useState<string | null>(null);
   const [manualId, setManualId] = useState("");
+
+  // Esc closes the inspect modal (safety net so it's never un-closable).
+  useEffect(() => {
+    if (!inspect) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setInspect(null);
+        setWaitMsg(null);
+        setManualId("");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inspect]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -277,17 +291,17 @@ export default function AssetGallery({
           }}
         >
           <div
-            className="bg-card border border-border rounded-2xl w-full max-w-2xl overflow-hidden fade-up"
+            className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden fade-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h3 className="font-display font-semibold text-foreground truncate">{inspect.title}</h3>
-              <button onClick={() => setInspect(null)} className="text-muted hover:text-foreground">
+              <button onClick={() => setInspect(null)} className="text-muted hover:text-foreground" aria-label="Close">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-5 max-h-[60vh] overflow-auto">
+            <div className="p-5 overflow-auto flex-1 min-h-0">
               <div className="rounded-xl overflow-hidden bg-surface flex items-center justify-center">
                 {inspect.type === "image" && inspect.url && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -371,7 +385,7 @@ export default function AssetGallery({
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-4 border-t border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-t border-border shrink-0">
               <div className="flex items-center gap-2">
                 {inspect.type !== "video" &&
                   ["not_published", "failed", "rejected"].includes(inspect.roblox_status) && (

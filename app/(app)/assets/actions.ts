@@ -8,10 +8,11 @@ import { getRobloxConfig } from "@/lib/settings";
 import { ASSET_BUCKET } from "@/lib/storage";
 import {
   RobloxError,
+  fetchAssetType,
   fetchModeration,
+  grantOpenUse,
   outcomeToStatus,
   pollOperation,
-  resolveTextureId,
   uploadAsset,
   type RobloxAssetType,
 } from "@/lib/roblox";
@@ -46,10 +47,10 @@ async function persist(
 }
 
 /**
- * Manually attach a Roblox asset ID and mark the asset approved. This is the
- * path for VIDEO (Open Cloud can't upload video — you upload it via Roblox's own
- * pipeline, then paste the asset ID here) and for reusing an asset that already
- * exists on Roblox.
+ * Manually attach a Roblox asset ID (the **Image** id for images — "Copy Texture
+ * ID" — or the asset id for video/audio) and mark the asset approved. Also makes
+ * it Open Use so it renders in any experience. Rejects a Decal id with guidance,
+ * since that's the common mistake that renders black (ImageLabel needs the Image).
  */
 export async function setRobloxAssetIdManually(
   assetId: string,
@@ -58,11 +59,26 @@ export async function setRobloxAssetIdManually(
   if (!(await assertAdmin())) return { error: "Forbidden" };
   if (!Number.isInteger(robloxAssetId) || robloxAssetId <= 0)
     return { error: "Enter a valid numeric Roblox asset ID." };
+
+  const cfg = await getRobloxConfig();
+  let note: string | null = null;
+  if (cfg.apiKey) {
+    const type = await fetchAssetType(cfg.apiKey, robloxAssetId);
+    if (type === "Decal")
+      return {
+        error:
+          "That's the Decal id — it won't render. Open the asset on Roblox, click \"Copy Texture ID\", and paste that Image id instead.",
+      };
+    // Make it usable in every experience (any owner). Best-effort.
+    const grant = await grantOpenUse(cfg.apiKey, robloxAssetId);
+    if (!grant.ok) note = `Saved, but couldn't auto-set Open Use (${grant.message}). Set it manually on Roblox if it won't load in other games.`;
+  }
+
   await persist(assetId, {
     roblox_status: "approved",
     roblox_asset_id: robloxAssetId,
     roblox_operation_id: null,
-    roblox_error: null,
+    roblox_error: note,
   });
   return { ok: true, status: "approved", robloxAssetId };
 }
@@ -132,20 +148,28 @@ export async function publishAssetToRoblox(assetId: string): Promise<ActionResul
       tries++;
     }
 
-    // Images upload as Decals, but ImageLabel needs the Texture ID — resolve it
-    // so the served asset actually renders (falls back to the decal id).
-    let finalAssetId = outcome.assetId ?? null;
+    const finalAssetId = outcome.assetId ?? null;
+    const status = outcomeToStatus(outcome);
+
+    // Make the uploaded asset usable in ANY experience (Open Use). For an image
+    // this uploads as a Decal; granting with dependencies cascades to the
+    // underlying Image/texture, so it's public once the admin sets the Image id.
+    let note: string | null = null;
+    if (finalAssetId) {
+      const grant = await grantOpenUse(apiKey, finalAssetId);
+      if (!grant.ok) note = `Couldn't auto-set Open Use (${grant.message}).`;
+    }
+    // Images come back as a Decal id, which an ImageLabel can't render. We can't
+    // fetch the Image id server-side, so guide the admin to paste it.
     if (asset.type === "image" && finalAssetId) {
-      const tex = await resolveTextureId(finalAssetId);
-      if (tex) finalAssetId = tex;
+      note = `Published as a Decal and set to Open Use. To make it render in-game, open the asset on Roblox, click "Copy Texture ID", and paste that Image id below.${note ? " " + note : ""}`;
     }
 
-    const status = outcomeToStatus(outcome);
     await persist(assetId, {
       roblox_status: status,
       roblox_asset_id: finalAssetId,
       roblox_operation_id: outcome.done ? null : outcome.operationId ?? null,
-      roblox_error: null,
+      roblox_error: note,
     });
     revalidatePath("/assets");
     return { ok: true, status, robloxAssetId: finalAssetId };

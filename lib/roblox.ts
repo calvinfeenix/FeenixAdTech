@@ -192,25 +192,52 @@ export async function validateKey(apiKey: string): Promise<{ ok: boolean; messag
 }
 
 /**
- * Resolve the underlying Texture ID from a Decal asset ID. Open Cloud uploads
- * images as Decals, but ImageLabel.Image / Decal.Texture need the Texture ID
- * (what Roblox's "Copy Texture ID" gives). Best-effort: returns null on failure,
- * in which case the admin can paste the Texture ID manually.
+ * Make an asset usable in ANY experience (any owner) — "Open Use" — via the
+ * Open Cloud Asset Permissions API: grant the `All` subject the `Use` action.
+ * `grantDependencies` cascades a Decal's grant to its underlying Image/texture,
+ * so the texture an ImageLabel actually renders becomes public too.
+ *
+ * Note: Open Use is IRREVOCABLE (per Roblox). Re-granting an already-public
+ * asset returns the `PublicAssetCannotBeGrantedTo` error, which we treat as OK.
  */
-export async function resolveTextureId(decalId: number): Promise<number | null> {
+export async function grantOpenUse(apiKey: string, assetId: number): Promise<{ ok: boolean; message?: string }> {
+  let res: Response;
   try {
-    const res = await fetch(`https://assetdelivery.roblox.com/v1/asset/?id=${decalId}`, {
-      headers: { "User-Agent": "Roblox/WinInet" },
-      redirect: "follow",
+    res = await fetch(`${BASE}/asset-permissions-api/v1/assets/permissions`, {
+      method: "PATCH",
+      headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subjectType: "All",
+        subjectId: null,
+        action: "Use",
+        requests: [{ assetId, grantDependencies: true }],
+      }),
     });
-    if (!res.ok) return null;
-    const xml = await res.text();
-    // Decal XML embeds its texture as <Content name="Texture">…id=NNN…</Content>.
-    const m = xml.match(/Texture[\s\S]{0,200}?(?:\?id=|rbxassetid:\/\/)(\d+)/i);
-    const id = m ? Number(m[1]) : null;
-    return id && id > 0 && id !== decalId ? id : null;
+  } catch (e) {
+    return { ok: false, message: `Could not reach Roblox: ${(e as Error).message}` };
+  }
+  if (!res.ok) return { ok: false, message: `Open Use grant returned HTTP ${res.status}.` };
+  const data = (await res.json().catch(() => null)) as
+    | { successAssetIds?: number[]; errors?: { assetId: number; code: string }[] }
+    | null;
+  if (data?.successAssetIds?.some((id) => Number(id) === assetId)) return { ok: true };
+  const err = data?.errors?.find((e) => Number(e.assetId) === assetId);
+  if (err?.code === "PublicAssetCannotBeGrantedTo") return { ok: true }; // already Open Use
+  return { ok: false, message: err?.code ?? "Open Use grant failed." };
+}
+
+/** The asset's type ("Decal" | "Image" | "Audio" | …), or undefined. Used to
+ *  catch the common mistake of pasting a Decal id where the Image id is needed. */
+export async function fetchAssetType(apiKey: string, assetId: number): Promise<string | undefined> {
+  try {
+    const res = await fetch(`${BASE}/assets/v1/assets/${assetId}?readMask=assetType`, {
+      headers: { "x-api-key": apiKey },
+    });
+    if (!res.ok) return undefined;
+    const data = (await res.json().catch(() => null)) as { assetType?: string } | null;
+    return data?.assetType;
   } catch {
-    return null;
+    return undefined;
   }
 }
 
