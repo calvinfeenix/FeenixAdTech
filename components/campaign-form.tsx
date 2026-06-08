@@ -263,8 +263,21 @@ export default function CampaignForm({
                       onChange={() => toggleAction(a.id)}
                       className="accent-[var(--accent)] w-4 h-4"
                     />
-                    <span className="text-sm text-foreground">{a.title}</span>
-                    <span className="text-xs text-muted ml-auto">
+                    <span className="w-10 h-10 rounded-md overflow-hidden bg-card border border-border flex items-center justify-center shrink-0">
+                      {a.thumb_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={a.thumb_url} alt={a.title} className="w-full h-full object-cover" />
+                      ) : a.type === "audio" ? (
+                        <Music size={16} className="text-muted" />
+                      ) : (
+                        <Play size={16} className="text-muted" />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm text-foreground truncate">{a.title}</span>
+                      <span className="block text-xs text-muted capitalize">{a.type}</span>
+                    </span>
+                    <span className="text-xs text-muted ml-auto shrink-0">
                       {action ? "Clickable" : "Passive"}
                     </span>
                   </label>

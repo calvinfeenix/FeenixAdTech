@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { robloxPlaceId?: number | string; placements?: Placement[] };
+  let body: { robloxPlaceId?: number | string; gameName?: string; placements?: Placement[] };
   try {
     body = await request.json();
   } catch {
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
 
   const placeId = body.robloxPlaceId != null ? String(body.robloxPlaceId) : "";
   if (!placeId) return NextResponse.json({ error: "Missing robloxPlaceId" }, { status: 400 });
+  const gameName = typeof body.gameName === "string" ? body.gameName.trim().slice(0, 120) : "";
 
   const placements = (body.placements ?? []).filter(
     (p): p is Required<Pick<Placement, "externalRef">> & Placement =>
@@ -49,19 +50,24 @@ export async function POST(request: Request) {
   // admins can rename/deactivate auto-created games in the Games tab).
   let { data: game } = await admin
     .from("games")
-    .select("id")
+    .select("id, name")
     .eq("roblox_place_id", placeId)
     .maybeSingle();
 
+  const fallbackName = `Roblox Place ${placeId}`;
   if (!game) {
     const created = await admin
       .from("games")
-      .insert({ name: `Roblox Place ${placeId}`, roblox_place_id: placeId, status: "active" })
-      .select("id")
+      .insert({ name: gameName || fallbackName, roblox_place_id: placeId, status: "active" })
+      .select("id, name")
       .single();
     if (created.error || !created.data)
       return NextResponse.json({ error: created.error?.message ?? "Could not create game" }, { status: 500 });
     game = created.data;
+  } else if (gameName && (game.name === fallbackName || game.name.startsWith("Roblox Place "))) {
+    // Upgrade the auto-generated placeholder name to the real experience name
+    // (won't overwrite a name an admin has set manually).
+    await admin.from("games").update({ name: gameName }).eq("id", game.id);
   }
 
   if (placements.length === 0) return NextResponse.json({ registered: 0, gameId: game.id });
