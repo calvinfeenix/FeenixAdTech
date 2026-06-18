@@ -1,13 +1,12 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { Megaphone, Eye, MousePointerClick, Users, ArrowRight } from "lucide-react";
+import { Megaphone, ArrowRight } from "lucide-react";
 import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
-import { fetchCampaignAnalytics } from "@/lib/analytics";
-import { formatCompact, formatDate, formatPercent, campaignStatusColors } from "@/lib/utils";
-import StatCard from "@/components/stat-card";
+import { formatDate, campaignStatusColors } from "@/lib/utils";
 import Badge from "@/components/badge";
 import EmptyState from "@/components/empty-state";
-import { TrendChart } from "@/components/charts";
+import { DashboardAnalytics, AnalyticsSkeleton } from "@/components/analytics-sections";
 import type { Campaign } from "@/lib/types";
 
 export default async function DashboardPage() {
@@ -20,11 +19,7 @@ export default async function DashboardPage() {
     .select("*")
     .order("created_at", { ascending: false });
   const campaigns = (campaignRows ?? []) as Campaign[];
-
-  // Aggregated server-side (RPC, with a paginated fallback) — fetching raw
-  // events would hit PostgREST's row cap and silently drop recent days.
   const ids = campaigns.map((c) => c.id);
-  const summary = await fetchCampaignAnalytics(supabase, ids);
   const activeCount = campaigns.filter((c) => c.status === "active").length;
 
   return (
@@ -40,35 +35,10 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Headline metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Campaigns"
-          value={String(campaigns.length)}
-          subtitle={`${activeCount} active`}
-          icon={Megaphone}
-        />
-        <StatCard title="Impressions" value={formatCompact(summary.impressions)} icon={Eye} />
-        <StatCard
-          title="Unique Users"
-          value={formatCompact(summary.uniqueUsers)}
-          icon={Users}
-        />
-        <StatCard
-          title="CTR"
-          value={formatPercent(summary.ctr)}
-          subtitle={`${formatCompact(summary.clicks)} clicks`}
-          icon={MousePointerClick}
-        />
-      </div>
-
-      {/* Trend */}
-      {summary.daily.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4">Delivery trend</h2>
-          <TrendChart data={summary.daily} />
-        </div>
-      )}
+      {/* Metrics + trend stream in via the analytics RPC; the page shell renders immediately. */}
+      <Suspense fallback={<AnalyticsSkeleton />}>
+        <DashboardAnalytics campaignIds={ids} campaignsCount={campaigns.length} activeCount={activeCount} />
+      </Suspense>
 
       {/* Campaign list */}
       <div>

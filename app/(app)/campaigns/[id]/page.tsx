@@ -1,32 +1,14 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Eye,
-  MousePointerClick,
-  Activity,
-  Gamepad2,
-  MapPin,
-  Users,
-  Music,
-  Play,
-} from "lucide-react";
+import { ArrowLeft, Gamepad2, MapPin, Users, Music, Play } from "lucide-react";
 import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { publicUrl, THUMB_BUCKET } from "@/lib/storage";
-import { fetchCampaignAnalytics } from "@/lib/analytics";
-import {
-  campaignStatusColors,
-  formatCompact,
-  formatDate,
-  formatPercent,
-  initials,
-} from "@/lib/utils";
-import StatCard from "@/components/stat-card";
+import { campaignStatusColors, formatDate, initials } from "@/lib/utils";
 import Badge from "@/components/badge";
-import EmptyState from "@/components/empty-state";
 import CampaignActions from "@/components/campaign-actions";
-import { TrendChart, BreakdownChart } from "@/components/charts";
+import { CampaignAnalytics, AnalyticsSkeleton } from "@/components/analytics-sections";
 import type { Asset, Campaign, GameLocation, Profile } from "@/lib/types";
 
 export default async function CampaignDetailPage({
@@ -48,16 +30,15 @@ export default async function CampaignDetailPage({
 
   const c = campaign as Campaign;
 
-  // Assignments + analytics in parallel. Analytics is aggregated server-side via
-  // the RPC (fetching raw events would hit PostgREST's row cap at scale).
-  const [assetsRes, gamesRes, locationsRes, usersRes, summary] = await Promise.all([
+  // Assignments load fast. Analytics is lazy-loaded below in a Suspense boundary
+  // so this page never blocks on the (DB-aggregated) metrics query.
+  const [assetsRes, gamesRes, locationsRes, usersRes] = await Promise.all([
     supabase.from("campaign_assets").select("assets(*)").eq("campaign_id", id),
     supabase.from("campaign_games").select("games(id, name)").eq("campaign_id", id),
     supabase.from("campaign_locations").select("game_locations(id, name, game_id)").eq("campaign_id", id),
     isAdmin
       ? supabase.from("campaign_users").select("profiles(id, username, full_name, email)").eq("campaign_id", id)
       : Promise.resolve({ data: [] as unknown[] }),
-    fetchCampaignAnalytics(supabase, [id]),
   ]);
 
   // Supabase types embedded relations loosely, so unwrap via `unknown` casts.
@@ -96,46 +77,10 @@ export default async function CampaignDetailPage({
         {isAdmin && <CampaignActions id={c.id} />}
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Impressions" value={formatCompact(summary.impressions)} icon={Eye} />
-        <StatCard title="Unique Users" value={formatCompact(summary.uniqueUsers)} icon={Users} />
-        <StatCard
-          title="CTR"
-          value={formatPercent(summary.ctr)}
-          subtitle={`${formatCompact(summary.clicks)} clicks`}
-          icon={MousePointerClick}
-        />
-        <StatCard title="Creatives" value={String(assets.length)} subtitle={`${games.length} games`} icon={Gamepad2} />
-      </div>
-
-      {/* Trend */}
-      {summary.daily.length > 0 ? (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4">Delivery over time</h2>
-          <TrendChart data={summary.daily} />
-        </div>
-      ) : (
-        <EmptyState
-          icon={Activity}
-          title="No analytics yet"
-          description="Once Roblox starts reporting events for this campaign, performance will appear here."
-        />
-      )}
-
-      {/* Breakdowns */}
-      {(summary.byGame.length > 0 || summary.byLocation.length > 0) && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-foreground mb-3">Impressions by game</h2>
-            <BreakdownChart data={summary.byGame.map((g) => ({ label: g.game, value: g.impressions }))} />
-          </div>
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-foreground mb-3">Impressions by location</h2>
-            <BreakdownChart data={summary.byLocation.map((l) => ({ label: l.location, value: l.impressions }))} />
-          </div>
-        </div>
-      )}
+      {/* Metrics + trend + breakdowns stream in via the analytics RPC. */}
+      <Suspense fallback={<AnalyticsSkeleton />}>
+        <CampaignAnalytics campaignId={id} creativesCount={assets.length} gamesCount={games.length} />
+      </Suspense>
 
       {/* Targeting & creatives */}
       <div className="grid lg:grid-cols-3 gap-4">
