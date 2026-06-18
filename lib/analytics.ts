@@ -1,9 +1,62 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AnalyticsEvent, CampaignAnalyticsSummary } from "./types";
 
 interface NamedEvent extends AnalyticsEvent {
   game_name?: string | null;
   location_name?: string | null;
 }
+
+/**
+ * Fetch an aggregated analytics summary for the given campaigns.
+ *
+ * Primary path: the `campaign_analytics` Postgres RPC (aggregates in SQL → one
+ * tiny payload, no row cap). Fallback (used until that function is created in
+ * the DB): page through ALL events with `.range()` — each page is ≤1000 rows so
+ * it sidesteps PostgREST's cap — and aggregate in JS. The fallback is correct
+ * but slower; running scripts/analytics-function.sql switches to the fast path.
+ */
+export async function fetchCampaignAnalytics(
+  supabase: SupabaseClient,
+  campaignIds: string[]
+): Promise<CampaignAnalyticsSummary> {
+  if (campaignIds.length === 0) return EMPTY_SUMMARY;
+
+  const rpc = await supabase.rpc("campaign_analytics", { p_campaign_ids: campaignIds });
+  if (!rpc.error && rpc.data) return rpc.data as CampaignAnalyticsSummary;
+
+  // Fallback: aggregate raw events, paging past the 1000-row cap.
+  const PAGE = 1000;
+  const events: NamedEvent[] = [];
+  for (let from = 0; from < 1_000_000; from += PAGE) {
+    const { data, error } = await supabase
+      .from("analytics_events")
+      .select("event_type, count, ts, game_id, location_id, games(name), game_locations(name)")
+      .in("campaign_id", campaignIds)
+      .order("ts", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error || !data || data.length === 0) break;
+    for (const r of data as Record<string, unknown>[]) {
+      events.push({
+        ...(r as unknown as AnalyticsEvent),
+        game_name: (r.games as { name?: string } | null)?.name ?? null,
+        location_name: (r.game_locations as { name?: string } | null)?.name ?? null,
+      });
+    }
+    if (data.length < PAGE) break;
+  }
+  return summarizeAnalytics(events);
+}
+
+/** Zero-state used when a campaign has no events (or the RPC returns null). */
+export const EMPTY_SUMMARY: CampaignAnalyticsSummary = {
+  impressions: 0,
+  clicks: 0,
+  uniqueUsers: 0,
+  ctr: 0,
+  daily: [],
+  byGame: [],
+  byLocation: [],
+};
 
 /**
  * Aggregate raw analytics events into the summary the UI charts consume.

@@ -349,3 +349,68 @@ alter table campaign_assets add column if not exists action_type text
 alter table campaign_assets add column if not exists action_text text;
 alter table campaign_assets add column if not exists action_max_distance integer;
 alter table campaign_assets add column if not exists action_hold_duration numeric(5,2);
+
+-- ════════════════════════════════════════════════════════════════════════
+-- ANALYTICS AGGREGATION (server-side)
+-- The dashboard/campaign pages must NOT fetch raw events — at scale that hits
+-- PostgREST's row cap and silently drops recent days. This function aggregates
+-- entirely in SQL and returns one small JSON payload (totals + daily series +
+-- per-game/per-location breakdowns). SECURITY INVOKER so the caller's RLS still
+-- applies (a user only aggregates events for campaigns they can access). Days
+-- are bucketed in UTC to match the stored timestamps.
+-- ════════════════════════════════════════════════════════════════════════
+create or replace function public.campaign_analytics(p_campaign_ids uuid[])
+returns jsonb
+language sql
+stable
+security invoker
+as $$
+  with ev as (
+    select * from analytics_events
+    where campaign_id = any(p_campaign_ids)
+  ),
+  totals as (
+    select
+      coalesce(sum(count) filter (where event_type = 'impression'), 0)  as impressions,
+      coalesce(sum(count) filter (where event_type = 'click'), 0)        as clicks,
+      coalesce(sum(count) filter (where event_type = 'unique_user'), 0)  as unique_users
+    from ev
+  ),
+  daily as (
+    select
+      to_char((ts at time zone 'UTC'), 'YYYY-MM-DD') as date,
+      coalesce(sum(count) filter (where event_type = 'impression'), 0)  as impressions,
+      coalesce(sum(count) filter (where event_type = 'click'), 0)        as clicks,
+      coalesce(sum(count) filter (where event_type = 'unique_user'), 0)  as unique_users
+    from ev
+    group by 1
+    order by 1
+  ),
+  by_game as (
+    select coalesce(g.name, 'Unattributed') as game, sum(ev.count) as impressions
+    from ev left join games g on g.id = ev.game_id
+    where ev.event_type = 'impression'
+    group by 1 order by 2 desc
+  ),
+  by_loc as (
+    select coalesce(l.name, 'Unattributed') as location, sum(ev.count) as impressions
+    from ev left join game_locations l on l.id = ev.location_id
+    where ev.event_type = 'impression'
+    group by 1 order by 2 desc
+  )
+  select jsonb_build_object(
+    'impressions', (select impressions from totals),
+    'clicks',      (select clicks from totals),
+    'uniqueUsers', (select unique_users from totals),
+    'ctr', case when (select impressions from totals) > 0
+                then round((select clicks::numeric from totals) / (select impressions from totals), 6)
+                else 0 end,
+    'daily', coalesce((select jsonb_agg(jsonb_build_object(
+                'date', date, 'impressions', impressions, 'clicks', clicks, 'uniqueUsers', unique_users))
+              from daily), '[]'::jsonb),
+    'byGame', coalesce((select jsonb_agg(jsonb_build_object('game', game, 'impressions', impressions))
+              from by_game), '[]'::jsonb),
+    'byLocation', coalesce((select jsonb_agg(jsonb_build_object('location', location, 'impressions', impressions))
+              from by_loc), '[]'::jsonb)
+  );
+$$;

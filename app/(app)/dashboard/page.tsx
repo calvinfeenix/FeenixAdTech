@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Megaphone, Eye, MousePointerClick, Users, ArrowRight } from "lucide-react";
 import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
-import { summarizeAnalytics } from "@/lib/analytics";
+import { fetchCampaignAnalytics } from "@/lib/analytics";
 import { formatCompact, formatDate, formatPercent, campaignStatusColors } from "@/lib/utils";
 import StatCard from "@/components/stat-card";
 import Badge from "@/components/badge";
@@ -21,15 +21,10 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false });
   const campaigns = (campaignRows ?? []) as Campaign[];
 
+  // Aggregated server-side (RPC, with a paginated fallback) — fetching raw
+  // events would hit PostgREST's row cap and silently drop recent days.
   const ids = campaigns.map((c) => c.id);
-  const { data: events } = ids.length
-    ? await supabase
-        .from("analytics_events")
-        .select("event_type, count, ts, campaign_id")
-        .in("campaign_id", ids)
-    : { data: [] };
-
-  const summary = summarizeAnalytics((events ?? []) as never);
+  const summary = await fetchCampaignAnalytics(supabase, ids);
   const activeCount = campaigns.filter((c) => c.status === "active").length;
 
   return (

@@ -14,7 +14,7 @@ import {
 import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { publicUrl, THUMB_BUCKET } from "@/lib/storage";
-import { summarizeAnalytics } from "@/lib/analytics";
+import { fetchCampaignAnalytics } from "@/lib/analytics";
 import {
   campaignStatusColors,
   formatCompact,
@@ -27,7 +27,7 @@ import Badge from "@/components/badge";
 import EmptyState from "@/components/empty-state";
 import CampaignActions from "@/components/campaign-actions";
 import { TrendChart, BreakdownChart } from "@/components/charts";
-import type { AnalyticsEvent, Asset, Campaign, GameLocation, Profile } from "@/lib/types";
+import type { Asset, Campaign, GameLocation, Profile } from "@/lib/types";
 
 export default async function CampaignDetailPage({
   params,
@@ -48,18 +48,16 @@ export default async function CampaignDetailPage({
 
   const c = campaign as Campaign;
 
-  // Assignments + analytics in parallel.
-  const [assetsRes, gamesRes, locationsRes, usersRes, eventsRes] = await Promise.all([
+  // Assignments + analytics in parallel. Analytics is aggregated server-side via
+  // the RPC (fetching raw events would hit PostgREST's row cap at scale).
+  const [assetsRes, gamesRes, locationsRes, usersRes, summary] = await Promise.all([
     supabase.from("campaign_assets").select("assets(*)").eq("campaign_id", id),
     supabase.from("campaign_games").select("games(id, name)").eq("campaign_id", id),
     supabase.from("campaign_locations").select("game_locations(id, name, game_id)").eq("campaign_id", id),
     isAdmin
       ? supabase.from("campaign_users").select("profiles(id, username, full_name, email)").eq("campaign_id", id)
       : Promise.resolve({ data: [] as unknown[] }),
-    supabase
-      .from("analytics_events")
-      .select("id, campaign_id, game_id, location_id, event_type, count, ts")
-      .eq("campaign_id", id),
+    fetchCampaignAnalytics(supabase, [id]),
   ]);
 
   // Supabase types embedded relations loosely, so unwrap via `unknown` casts.
@@ -77,16 +75,6 @@ export default async function CampaignDetailPage({
   const viewers = ((usersRes.data ?? []) as unknown as { profiles: Profile }[])
     .map((r) => r.profiles)
     .filter(Boolean);
-
-  // Build id → name maps so the analytics breakdown shows readable labels.
-  const gameName = new Map(games.map((g) => [g.id, g.name]));
-  const locationName = new Map(locations.map((l) => [l.id, l.name]));
-  const namedEvents = ((eventsRes.data ?? []) as AnalyticsEvent[]).map((e) => ({
-    ...e,
-    game_name: e.game_id ? gameName.get(e.game_id) ?? null : null,
-    location_name: e.location_id ? locationName.get(e.location_id) ?? null : null,
-  }));
-  const summary = summarizeAnalytics(namedEvents);
 
   return (
     <div className="space-y-6 fade-up">
