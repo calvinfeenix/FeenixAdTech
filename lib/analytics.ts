@@ -19,12 +19,24 @@ interface NamedEvent extends AnalyticsEvent {
  */
 export async function fetchCampaignAnalytics(
   supabase: SupabaseClient,
-  campaignIds: string[]
+  campaignIds: string[],
+  fromIso?: string | null
 ): Promise<CampaignAnalyticsSummary> {
   if (campaignIds.length === 0) return EMPTY_SUMMARY;
-  const { data, error } = await supabase.rpc("campaign_analytics", { p_campaign_ids: campaignIds });
-  if (error || !data) return EMPTY_SUMMARY;
-  return data as CampaignAnalyticsSummary;
+  let res = await supabase.rpc("campaign_analytics", { p_campaign_ids: campaignIds, p_from: fromIso ?? null });
+  // Fallback for the older function signature without the p_from date filter.
+  if (res.error) res = await supabase.rpc("campaign_analytics", { p_campaign_ids: campaignIds });
+  if (res.error || !res.data) return EMPTY_SUMMARY;
+  // Merge over defaults so a not-yet-migrated RPC (e.g. missing `byCountry`)
+  // can't crash consumers that read summary.byCountry.length, etc.
+  return { ...EMPTY_SUMMARY, ...(res.data as Partial<CampaignAnalyticsSummary>) };
+}
+
+/** Resolve a `range` URL param (7|28|90|all) to a since-timestamp. Default 28d. */
+export function resolveRange(range?: string): { range: string; fromIso: string | null } {
+  const r = range && ["7", "28", "90", "all"].includes(range) ? range : "28";
+  if (r === "all") return { range: r, fromIso: null };
+  return { range: r, fromIso: new Date(Date.now() - Number(r) * 86_400_000).toISOString() };
 }
 
 /** Zero-state used when a campaign has no events (or the RPC returns null). */
@@ -36,6 +48,7 @@ export const EMPTY_SUMMARY: CampaignAnalyticsSummary = {
   daily: [],
   byGame: [],
   byLocation: [],
+  byCountry: [],
 };
 
 /**
@@ -56,6 +69,7 @@ export function summarizeAnalytics(events: NamedEvent[]): CampaignAnalyticsSumma
   const dailyMap = new Map<string, { impressions: number; clicks: number; uniqueUsers: number }>();
   const gameMap = new Map<string, number>();
   const locationMap = new Map<string, number>();
+  const countryMap = new Map<string, number>();
 
   for (const e of events) {
     const count = e.count ?? 1;
@@ -74,8 +88,10 @@ export function summarizeAnalytics(events: NamedEvent[]): CampaignAnalyticsSumma
     if (e.event_type === "impression") {
       const g = e.game_name || "Unattributed";
       const l = e.location_name || "Unattributed";
+      const c = e.country || "Unknown";
       gameMap.set(g, (gameMap.get(g) ?? 0) + count);
       locationMap.set(l, (locationMap.get(l) ?? 0) + count);
+      countryMap.set(c, (countryMap.get(c) ?? 0) + count);
     }
   }
 
@@ -91,6 +107,10 @@ export function summarizeAnalytics(events: NamedEvent[]): CampaignAnalyticsSumma
     .map(([location, impressions]) => ({ location, impressions }))
     .sort((a, b) => b.impressions - a.impressions);
 
+  const byCountry = [...countryMap.entries()]
+    .map(([country, impressions]) => ({ country, impressions }))
+    .sort((a, b) => b.impressions - a.impressions);
+
   return {
     impressions,
     clicks,
@@ -99,5 +119,6 @@ export function summarizeAnalytics(events: NamedEvent[]): CampaignAnalyticsSumma
     daily,
     byGame,
     byLocation,
+    byCountry,
   };
 }

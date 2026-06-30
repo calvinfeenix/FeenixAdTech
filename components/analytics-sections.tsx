@@ -14,6 +14,17 @@ import { TrendChart, BreakdownChart } from "@/components/charts-lazy";
  * heavy lifting happens in the `campaign_analytics` RPC — see lib/analytics.
  */
 
+// Map ISO 3166-1 alpha-2 codes ("US") to readable names ("United States").
+const REGION_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
+function countryLabel(code: string): string {
+  if (!code || code === "Unknown") return "Unknown";
+  try {
+    return REGION_NAMES.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 /** Skeleton shown while the analytics RPC resolves. */
 export function AnalyticsSkeleton({ cards = 4 }: { cards?: number }) {
   return (
@@ -32,13 +43,15 @@ export async function DashboardAnalytics({
   campaignIds,
   campaignsCount,
   activeCount,
+  fromIso,
 }: {
   campaignIds: string[];
   campaignsCount: number;
   activeCount: number;
+  fromIso?: string | null;
 }) {
   const supabase = await createClient();
-  const summary = await fetchCampaignAnalytics(supabase, campaignIds);
+  const summary = await fetchCampaignAnalytics(supabase, campaignIds, fromIso);
 
   return (
     <div className="space-y-6">
@@ -64,9 +77,9 @@ export async function DashboardAnalytics({
 }
 
 /** "Best Performing Experiences" — top games by impressions with live Roblox icons. */
-export async function TopGames({ campaignIds }: { campaignIds: string[] }) {
+export async function TopGames({ campaignIds, fromIso }: { campaignIds: string[]; fromIso?: string | null }) {
   const supabase = await createClient();
-  const summary = await fetchCampaignAnalytics(supabase, campaignIds);
+  const summary = await fetchCampaignAnalytics(supabase, campaignIds, fromIso);
   const top = summary.byGame.filter((g) => g.game && g.game !== "Unattributed").slice(0, 3);
 
   let icons = new Map<string, string>();
@@ -124,13 +137,15 @@ export async function CampaignAnalytics({
   campaignId,
   creativesCount,
   gamesCount,
+  fromIso,
 }: {
   campaignId: string;
   creativesCount: number;
   gamesCount: number;
+  fromIso?: string | null;
 }) {
   const supabase = await createClient();
-  const summary = await fetchCampaignAnalytics(supabase, [campaignId]);
+  const summary = await fetchCampaignAnalytics(supabase, [campaignId], fromIso);
 
   return (
     <div className="space-y-6">
@@ -169,6 +184,13 @@ export async function CampaignAnalytics({
             <h2 className="text-sm font-semibold text-foreground mb-3">Impressions by location</h2>
             <BreakdownChart data={summary.byLocation.map((l) => ({ label: l.location, value: l.impressions }))} />
           </div>
+        </div>
+      )}
+
+      {summary.byCountry.length > 0 && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-3">Impressions by country</h2>
+          <BreakdownChart data={summary.byCountry.map((c) => ({ label: countryLabel(c.country), value: c.impressions }))} />
         </div>
       )}
     </div>

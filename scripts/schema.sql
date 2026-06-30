@@ -152,8 +152,11 @@ create table if not exists analytics_events (
   count       integer not null default 1,
   ts          timestamptz not null default now()
 );
+-- Player country (ISO 3166-1 alpha-2, e.g. "US"); null when the SDK can't resolve it.
+alter table analytics_events add column if not exists country text;
 create index if not exists idx_analytics_campaign_ts on analytics_events(campaign_id, ts);
 create index if not exists idx_analytics_game on analytics_events(game_id);
+create index if not exists idx_analytics_country on analytics_events(country);
 
 -- ════════════════════════════════════════════════════════════════════════
 -- RLS HELPER FUNCTIONS  (SECURITY DEFINER → no policy recursion)
@@ -361,15 +364,23 @@ alter table campaign_assets add column if not exists action_hold_duration numeri
 -- applies (a user only aggregates events for campaigns they can access). Days
 -- are bucketed in UTC to match the stored timestamps.
 -- ════════════════════════════════════════════════════════════════════════
-create or replace function public.campaign_analytics(p_campaign_ids uuid[])
+drop function if exists public.campaign_analytics(uuid[]);
+
+create or replace function public.campaign_analytics(p_campaign_ids uuid[], p_from timestamptz default null)
 returns jsonb
 language sql
 stable
-security invoker
+security definer
+set search_path = public
 as $$
-  with ev as (
+  with allowed as (
+    select id from unnest(p_campaign_ids) as t(id)
+    where public.can_access_campaign(id)
+  ),
+  ev as (
     select * from analytics_events
-    where campaign_id = any(p_campaign_ids)
+    where campaign_id in (select id from allowed)
+      and (p_from is null or ts >= p_from)
   ),
   totals as (
     select
@@ -416,3 +427,4 @@ as $$
               from by_loc), '[]'::jsonb)
   );
 $$;
+grant execute on function public.campaign_analytics(uuid[], timestamptz) to anon, authenticated, service_role;

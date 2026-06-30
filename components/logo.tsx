@@ -23,7 +23,7 @@ export function Wordmark({ size = 24, mark = true }: { size?: number; mark?: boo
     <div className="flex items-center" style={{ gap: size * 0.4 }}>
       {mark && <Logo size={Math.round(size * 1.35)} />}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/LogoVectorDashboard.svg" alt="feenix AdTech" style={{ height: size * 0.72 }} className="w-auto" />
+      <img src="/Vector.svg" alt="feenix AdTech" style={{ height: size * 0.72 }} className="w-auto" />
     </div>
   );
 }

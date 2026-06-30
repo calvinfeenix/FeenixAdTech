@@ -132,6 +132,15 @@ h1, h2, h3, .font-display {
 .bg-drift { animation: bg-drift 26s ease-in-out infinite; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .bg-drift { animation: none; } }
 
+/* Collapsible sidebar — the content column owns its own left offset (NOT a
+   Tailwind ml-* utility) so the collapsed override reliably wins and the page
+   stretches to meet the rail (no dark-blue gap). */
+.app-content { transition: margin-left 0.2s ease; }
+@media (min-width: 1024px) {
+  .app-content { margin-left: 240px; }
+  html.feenix-collapsed .app-content { margin-left: 76px; }
+}
+
 /* Mouse-follow gradient glow on interactive cards (brand colours). The cursor
    position is fed in as --mx/--my by the CardGlow listener; pure CSS otherwise. */
 .card-glow { position: relative; isolation: isolate; }

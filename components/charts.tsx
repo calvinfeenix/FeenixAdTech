@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { formatCompact } from "@/lib/utils";
 
-const AXIS = "#8294b8";
+const AXIS = "#346C92";
 const GRID = "rgba(102,204,255,0.07)";
 const COLORS = ["#66CCFF", "#00FF6C", "#1677FF", "#FB923C", "#EC4899", "#EF4452"];
 
@@ -116,7 +116,13 @@ export function BreakdownChart({ data }: { data: BreakdownBar[] }) {
     <ResponsiveContainer width="100%" height={Math.max(140, data.length * 42)}>
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
         <CartesianGrid stroke={GRID} horizontal={false} />
-        <XAxis type="number" tick={{ fill: AXIS, fontSize: 11 }} tickLine={false} axisLine={false} />
+        <XAxis
+          type="number"
+          tick={{ fill: AXIS, fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: number) => formatCompact(v)}
+        />
         <YAxis
           type="category"
           dataKey="label"
@@ -125,8 +131,14 @@ export function BreakdownChart({ data }: { data: BreakdownBar[] }) {
           axisLine={false}
           width={130}
         />
-        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>
+        <Tooltip
+          contentStyle={tooltipStyle}
+          itemStyle={{ color: "#f3f8ff" }}
+          labelStyle={{ color: "#cbe7f6" }}
+          cursor={{ fill: "rgba(255,255,255,0.04)" }}
+          formatter={(v) => [formatCompact(Number(v)), "Impressions"] as [string, string]}
+        />
+        <Bar dataKey="value" name="Impressions" radius={[0, 6, 6, 0]} barSize={18}>
           {data.map((_, i) => (
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}

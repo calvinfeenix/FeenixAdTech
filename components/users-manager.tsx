@@ -38,7 +38,7 @@ export default function UsersManager({
     const isSelf = u.id === currentUserId;
     const disabled = busy === u.id;
     return (
-      <div className="flex items-center gap-4 bg-card border border-border rounded-xl px-4 py-3">
+      <div className="card-glow flex items-center gap-4 bg-card border border-border rounded-xl px-4 py-3 transition-colors">
         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-sm font-semibold shrink-0">
           {initials(u.full_name || u.username)}
         </div>
@@ -52,7 +52,11 @@ export default function UsersManager({
           </p>
         </div>
         <div className="hidden sm:flex items-center gap-2">
-          <Badge className={roleColors[u.role]}>{u.role}</Badge>
+          {u.is_super_admin ? (
+            <Badge className="bg-[#66CCFF]/15 text-[#66CCFF] border border-[#66CCFF]/30">super admin</Badge>
+          ) : (
+            <Badge className={roleColors[u.role]}>{u.role}</Badge>
+          )}
           <Badge className={userStatusColors[u.status]}>{u.status}</Badge>
           <span className="text-xs text-muted w-20 text-right">{formatDate(u.created_at)}</span>
         </div>

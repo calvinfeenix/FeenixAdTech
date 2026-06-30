@@ -18,11 +18,11 @@ export default function PageHero({
   return (
     <div className="relative -mt-20 -mx-4 sm:-mx-6 overflow-hidden">
       <div className="absolute inset-0 bg-cover bg-center bg-drift" style={{ backgroundImage: "url(/login-bg.png)" }} />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/55 via-background/75 to-background" />
-      <div className="relative px-4 sm:px-6 pt-24 pb-8 flex items-end justify-between gap-4">
+      <div className="absolute inset-0 bg-gradient-to-b from-background/45 via-background/65 to-background" />
+      <div className="relative px-4 sm:px-6 pt-28 pb-12 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-3xl font-display font-bold text-foreground">{title}</h1>
-          {subtitle && <p className="text-muted text-sm mt-1">{subtitle}</p>}
+          <h1 className="text-3xl sm:text-[34px] font-display font-bold text-foreground tracking-tight">{title}</h1>
+          {subtitle && <p className="text-muted text-sm mt-1.5 max-w-2xl">{subtitle}</p>}
         </div>
         {action}
       </div>

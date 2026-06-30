@@ -10,26 +10,32 @@ import {
   Trash2,
   Gamepad2,
   ExternalLink,
+  ChevronDown,
 } from "lucide-react";
 import { useToast } from "@/components/toast";
 import EmptyState from "@/components/empty-state";
 import Badge from "@/components/badge";
-import { gameStatusColors } from "@/lib/utils";
+import { gameStatusColors, formatCompact } from "@/lib/utils";
 import { addLocation, createGame, deleteGame, deleteLocation } from "@/app/(app)/games/actions";
 import type { Game } from "@/lib/types";
+
+type GameStat = { impressions: number; clicks: number; uniqueUsers: number };
 
 export default function GameManager({
   games,
   icons = {},
+  stats = {},
 }: {
   games: Game[];
   icons?: Record<string, string>;
+  stats?: Record<string, GameStat>;
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newLoc, setNewLoc] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   async function onCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,90 +90,119 @@ export default function GameManager({
         />
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
-          {games.map((g) => (
-            <div key={g.id} className="card-glow bg-card border border-border rounded-xl p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-surface border border-border shrink-0 flex items-center justify-center">
-                  {icons[g.id] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={icons[g.id]} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <Gamepad2 size={20} className="text-muted" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-foreground truncate">{g.name}</h3>
-                    <Badge className={gameStatusColors[g.status]}>{g.status}</Badge>
-                  </div>
-                  {g.description && (
-                    <p className="text-sm text-muted mt-1 line-clamp-2">{g.description}</p>
-                  )}
-                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted">
-                    {g.roblox_place_id && (
-                      <a
-                        href={`https://www.roblox.com/games/${g.roblox_place_id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 hover:text-accent"
-                      >
-                        <ExternalLink size={12} /> Place {g.roblox_place_id}
-                      </a>
+          {games.map((g) => {
+            const st = stats[g.id];
+            const isOpen = !!expanded[g.id];
+            return (
+              <div key={g.id} className="card-glow relative bg-card border border-border rounded-xl overflow-hidden">
+                {/* Header — click to expand the ad locations */}
+                <button
+                  type="button"
+                  onClick={() => setExpanded((p) => ({ ...p, [g.id]: !p[g.id] }))}
+                  aria-expanded={isOpen}
+                  className="w-full text-left p-5 flex items-start gap-3 pr-20"
+                >
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-surface border border-border shrink-0 flex items-center justify-center">
+                    {icons[g.id] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={icons[g.id]} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Gamepad2 size={20} className="text-muted" />
                     )}
-                    {g.roblox_universe_id && <span>Universe {g.roblox_universe_id}</span>}
                   </div>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-foreground truncate">{g.name}</h3>
+                      <Badge className={gameStatusColors[g.status]}>{g.status}</Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-muted">
+                      <span>
+                        <span className="text-foreground font-semibold">{formatCompact(st?.impressions ?? 0)}</span> impressions
+                      </span>
+                      <span>
+                        <span className="text-foreground font-semibold">{formatCompact(st?.uniqueUsers ?? 0)}</span> unique users
+                      </span>
+                      <span>
+                        <span className="text-foreground font-semibold">{formatCompact(st?.clicks ?? 0)}</span> clicks
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    className={`absolute right-11 top-6 text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {/* Delete — sibling so we don't nest buttons */}
                 <button
                   onClick={() => onDeleteGame(g)}
-                  className="text-muted hover:text-danger transition-colors shrink-0"
+                  className="absolute top-5 right-4 text-muted hover:text-danger transition-colors"
                   title="Delete game"
                 >
                   <Trash2 size={16} />
                 </button>
-              </div>
 
-              {/* Locations */}
-              <div className="mt-4 border-t border-border pt-3">
-                <p className="text-xs uppercase tracking-wide text-muted mb-2">
-                  Ad locations ({g.locations?.length ?? 0})
-                </p>
-                <div className="space-y-1.5">
-                  {(g.locations ?? []).map((loc) => (
-                    <div
-                      key={loc.id}
-                      className="flex items-center justify-between bg-surface rounded-lg px-3 py-1.5"
-                    >
-                      <span className="flex items-center gap-2 text-sm text-foreground">
-                        <MapPin size={13} className="text-accent" /> {loc.name}
-                      </span>
-                      <button
-                        onClick={() => onDeleteLocation(loc.id)}
-                        className="text-muted hover:text-danger transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
+                {/* Expanded: place info + ad locations */}
+                {isOpen && (
+                  <div className="px-5 pb-5">
+                    {(g.roblox_place_id || g.roblox_universe_id) && (
+                      <div className="flex flex-wrap gap-3 text-xs text-muted">
+                        {g.roblox_place_id && (
+                          <a
+                            href={`https://www.roblox.com/games/${g.roblox_place_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 hover:text-accent"
+                          >
+                            <ExternalLink size={12} /> Place {g.roblox_place_id}
+                          </a>
+                        )}
+                        {g.roblox_universe_id && <span>Universe {g.roblox_universe_id}</span>}
+                      </div>
+                    )}
+                    <div className="mt-3 border-t border-border pt-3">
+                      <p className="text-xs uppercase tracking-wide text-muted mb-2">
+                        Ad locations ({g.locations?.length ?? 0})
+                      </p>
+                      <div className="space-y-1.5">
+                        {(g.locations ?? []).map((loc) => (
+                          <div
+                            key={loc.id}
+                            className="flex items-center justify-between bg-surface rounded-lg px-3 py-1.5"
+                          >
+                            <span className="flex items-center gap-2 text-sm text-foreground">
+                              <MapPin size={13} className="text-accent" /> {loc.name}
+                            </span>
+                            <button
+                              onClick={() => onDeleteLocation(loc.id)}
+                              className="text-muted hover:text-danger transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          value={newLoc[g.id] ?? ""}
+                          onChange={(e) => setNewLoc((p) => ({ ...p, [g.id]: e.target.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && onAddLocation(g.id)}
+                          placeholder="Add location (e.g. Lobby Billboard)"
+                          className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none"
+                        />
+                        <button
+                          onClick={() => onAddLocation(g.id)}
+                          className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-muted-strong hover:text-foreground hover:bg-white/10 transition-colors"
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2 mt-2">
-                  <input
-                    value={newLoc[g.id] ?? ""}
-                    onChange={(e) => setNewLoc((p) => ({ ...p, [g.id]: e.target.value }))}
-                    onKeyDown={(e) => e.key === "Enter" && onAddLocation(g.id)}
-                    placeholder="Add location (e.g. Lobby Billboard)"
-                    className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none"
-                  />
-                  <button
-                    onClick={() => onAddLocation(g.id)}
-                    className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-muted-strong hover:text-foreground hover:bg-white/10 transition-colors"
-                  >
-                    <Plus size={15} />
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

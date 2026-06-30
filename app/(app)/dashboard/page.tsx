@@ -3,16 +3,22 @@ import Link from "next/link";
 import { Megaphone, ArrowRight } from "lucide-react";
 import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
-import { formatDate, campaignStatusColors } from "@/lib/utils";
 import { publicUrl, THUMB_BUCKET } from "@/lib/storage";
-import Badge from "@/components/badge";
+import { resolveRange } from "@/lib/analytics";
+import CampaignCard from "@/components/campaign-card";
 import EmptyState from "@/components/empty-state";
+import RangePicker from "@/components/range-picker";
 import { DashboardAnalytics, AnalyticsSkeleton, TopGames } from "@/components/analytics-sections";
 import type { Campaign } from "@/lib/types";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
   const profile = await requireApproved();
   const supabase = await createClient();
+  const { range, fromIso } = resolveRange((await searchParams).range);
 
   // RLS scopes this to campaigns the user can access (all, for admins).
   const { data: campaignRows } = await supabase
@@ -34,7 +40,7 @@ export default async function DashboardPage() {
     const url = r.assets?.thumb_path ? publicUrl(THUMB_BUCKET, r.assets.thumb_path) : null;
     if (!url) continue;
     const arr = thumbsByCampaign.get(r.campaign_id) ?? [];
-    if (arr.length < 4) arr.push(url);
+    if (arr.length < 6) arr.push(url);
     thumbsByCampaign.set(r.campaign_id, arr);
   }
 
@@ -64,14 +70,17 @@ export default async function DashboardPage() {
       </div>
 
       {/* Performance Highlights */}
-      <div>
-        <h2 className="text-[30px] leading-tight font-display font-bold text-accent">Performance Highlights</h2>
-        <p className="text-muted text-sm mt-0.5">Performance across the campaigns you have access to.</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-[30px] leading-tight font-display font-bold text-accent">Performance Highlights</h2>
+          <p className="text-muted text-sm mt-0.5">Performance across the campaigns you have access to.</p>
+        </div>
+        <RangePicker value={range} />
       </div>
 
       {/* Metrics + trend stream in via the analytics RPC; the page shell renders immediately. */}
-      <Suspense fallback={<AnalyticsSkeleton />}>
-        <DashboardAnalytics campaignIds={ids} campaignsCount={campaigns.length} activeCount={activeCount} />
+      <Suspense key={`metrics-${range}`} fallback={<AnalyticsSkeleton />}>
+        <DashboardAnalytics campaignIds={ids} campaignsCount={campaigns.length} activeCount={activeCount} fromIso={fromIso} />
       </Suspense>
 
       {/* Best experiences + campaigns */}
@@ -79,22 +88,22 @@ export default async function DashboardPage() {
         {/* Best Performing Experiences */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground">Best Performing Experiences</h2>
+            <h2 className="text-[14px] font-semibold text-[#66CCFF]">Best Performing Experiences</h2>
             {isAdmin && (
               <Link href="/games" className="text-xs text-[#a1a1aa] hover:underline flex items-center gap-1">
                 <ArrowRight size={13} /> View all
               </Link>
             )}
           </div>
-          <Suspense fallback={<div className="bg-card border border-border rounded-xl h-[88px] animate-pulse" />}>
-            <TopGames campaignIds={ids} />
+          <Suspense key={`topgames-${range}`} fallback={<div className="bg-card border border-border rounded-xl h-[88px] animate-pulse" />}>
+            <TopGames campaignIds={ids} fromIso={fromIso} />
           </Suspense>
         </div>
 
         {/* Your campaigns */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground">Your campaigns</h2>
+            <h2 className="text-[14px] font-semibold text-[#66CCFF]">Your campaigns</h2>
             <Link href="/campaigns" className="text-xs text-[#a1a1aa] hover:underline flex items-center gap-1">
               <ArrowRight size={13} /> View all
             </Link>
@@ -112,40 +121,18 @@ export default async function DashboardPage() {
             />
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {shown.map((c) => {
-                const thumbs = thumbsByCampaign.get(c.id) ?? [];
-                return (
-                  <Link
-                    key={c.id}
-                    href={`/campaigns/${c.id}`}
-                    className="card-glow relative overflow-hidden rounded-xl border border-border bg-card transition-colors group h-[116px] flex flex-col justify-end p-4"
-                  >
-                    {thumbs[0] && (
-                      <div className="absolute inset-0 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={thumbs[0]}
-                          alt=""
-                          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                        />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-card via-card/85 to-card/35" />
-                    <div className="relative">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-[18px] font-semibold text-foreground truncate group-hover:text-accent transition-colors">
-                          {c.name}
-                        </h3>
-                        <Badge className={campaignStatusColors[c.status]}>{c.status}</Badge>
-                      </div>
-                      <p className="text-xs text-muted mt-1.5">
-                        {c.flight_start ? formatDate(c.flight_start) : "No start"} →{" "}
-                        {c.flight_end ? formatDate(c.flight_end) : "Open"}
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
+              {shown.map((c) => (
+                <CampaignCard
+                  key={c.id}
+                  href={`/campaigns/${c.id}`}
+                  name={c.name}
+                  status={c.status}
+                  flightStart={c.flight_start}
+                  flightEnd={c.flight_end}
+                  thumbs={thumbsByCampaign.get(c.id) ?? []}
+                  heightClass="h-[116px]"
+                />
+              ))}
             </div>
           )}
         </div>

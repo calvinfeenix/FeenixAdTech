@@ -31,6 +31,15 @@ interface IncomingEvent {
   event_type?: string;
   count?: number;
   ts?: string;
+  /** ISO 3166-1 alpha-2 region code (e.g. "US"). Optional — older SDKs omit it. */
+  country?: string | null;
+}
+
+/** Keep only a plausible 2-letter region code; everything else becomes null. */
+function normalizeCountry(c: unknown): string | null {
+  if (typeof c !== "string") return null;
+  const up = c.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(up) ? up : null;
 }
 
 export async function POST(request: Request) {
@@ -59,12 +68,16 @@ export async function POST(request: Request) {
         { error: `event_type must be one of ${VALID_TYPES.join(", ")}` },
         { status: 400 }
       );
+    const country = normalizeCountry(e.country);
     rows.push({
       campaign_id: e.campaign_id,
       game_id: e.game_id ?? null,
       location_id: e.location_id ?? null,
       event_type: e.event_type,
       count: Number.isFinite(e.count) ? Math.max(1, Math.floor(e.count as number)) : 1,
+      // Only attach country when we actually have one, so events keep ingesting
+      // even before the `country` column migration has run.
+      ...(country ? { country } : {}),
       ...(e.ts ? { ts: e.ts } : {}),
     });
   }

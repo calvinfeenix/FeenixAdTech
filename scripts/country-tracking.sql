@@ -1,23 +1,20 @@
 -- ════════════════════════════════════════════════════════════════════════
--- Feenix AdTech — analytics aggregation RPC  (REQUIRED for the dashboard)
+-- Feenix AdTech — player-country tracking
 -- Paste this whole block into the Supabase SQL editor and Run.
 --
--- Why this exists:
---   The dashboard/campaign pages must NOT read raw analytics rows. Two reasons:
---   (1) PostgREST caps a plain select at 1000 rows (silently dropping recent
---       days), and (2) the row-level-security policy on analytics_events calls
---       can_access_campaign() PER ROW — with tens of thousands of events that
---       blows Postgres' statement timeout, so the query just fails.
+-- 1) Adds a nullable `country` column to analytics_events (ISO 3166-1 alpha-2,
+--    e.g. "US"). Older / un-updated SDKs simply omit it -> stays null. Idempotent.
+-- 2) Replaces campaign_analytics() so its JSON also includes `byCountry`
+--    (impressions grouped by country). SECURITY DEFINER, same access gating.
 --
---   This function aggregates entirely in SQL and returns one small JSON. It is
---   SECURITY DEFINER so the heavy aggregation BYPASSES per-row RLS (fast), but
---   it stays secure by first reducing the requested campaigns to only the ones
---   the caller may access. `p_from` optionally limits to events on/after a
---   timestamp (date-range filter; null = all time). Days are bucketed in UTC.
+-- Safe to run on a live DB: additive column + function replace, no data loss.
 -- ════════════════════════════════════════════════════════════════════════
 
--- Drop the old single-arg version so the new defaulted signature isn't ambiguous.
+alter table analytics_events add column if not exists country text;
+create index if not exists idx_analytics_country on analytics_events(country);
+
 drop function if exists public.campaign_analytics(uuid[]);
+drop function if exists public.campaign_analytics(uuid[], timestamptz);
 
 create or replace function public.campaign_analytics(p_campaign_ids uuid[], p_from timestamptz default null)
 returns jsonb
@@ -27,7 +24,6 @@ security definer
 set search_path = public
 as $$
   with allowed as (
-    -- access check: one call per requested campaign, NOT per event
     select id from unnest(p_campaign_ids) as t(id)
     where public.can_access_campaign(id)
   ),
@@ -85,5 +81,4 @@ as $$
   );
 $$;
 
--- Let API roles call it (PostgREST RPC). The DEFINER body still gates access.
 grant execute on function public.campaign_analytics(uuid[], timestamptz) to anon, authenticated, service_role;

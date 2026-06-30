@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UploadCloud, X, Loader2, FileImage, FileVideo, FileAudio } from "lucide-react";
 import { useToast } from "@/components/toast";
+import { createClient } from "@/lib/supabase";
+import { ASSET_BUCKET } from "@/lib/storage";
 import { assetTypeFromMime, formatBytes } from "@/lib/utils";
 
 /**
@@ -36,25 +38,12 @@ function captureVideoPoster(file: File): Promise<{ blob: Blob | null; duration: 
   });
 }
 
-function getAudioDuration(file: File): Promise<number> {
-  return new Promise((resolve) => {
-    const audio = document.createElement("audio");
-    audio.preload = "metadata";
-    audio.src = URL.createObjectURL(file);
-    audio.onloadedmetadata = () => {
-      URL.revokeObjectURL(audio.src);
-      resolve(audio.duration || 0);
-    };
-    audio.onerror = () => resolve(0);
-  });
-}
 
 export default function AssetUploader({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [tags, setTags] = useState("");
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,23 +65,45 @@ export default function AssetUploader({ onClose }: { onClose: () => void }) {
     if (!file || !type) return;
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.set("file", file);
-      fd.set("title", title || file.name);
-      fd.set("tags", tags);
-
       if (type === "video") {
+        // Large originals bypass the Next route (whose formData() chokes on big
+        // bodies): upload straight to Storage via a signed URL, then finalize.
+        const sres = await fetch("/api/assets/sign-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name }),
+        });
+        const sjson = await sres.json();
+        if (!sres.ok) throw new Error(sjson.error || "Could not start upload");
+
+        const supabase = createClient();
+        const { error: upErr } = await supabase.storage
+          .from(ASSET_BUCKET)
+          .uploadToSignedUrl(sjson.path, sjson.token, file, { contentType: file.type });
+        if (upErr) throw new Error(upErr.message);
+
         const { blob, duration } = await captureVideoPoster(file);
+        const fd = new FormData();
+        fd.set("storagePath", sjson.path);
+        fd.set("filename", file.name);
+        fd.set("mime", file.type);
+        fd.set("size", String(file.size));
+        fd.set("title", title || file.name);
         if (blob) fd.set("poster", new File([blob], "poster.webp", { type: "image/webp" }));
         if (duration) fd.set("duration", String(duration));
-      } else if (type === "audio") {
-        const duration = await getAudioDuration(file);
-        if (duration) fd.set("duration", String(duration));
-      }
 
-      const res = await fetch("/api/assets/upload", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Upload failed");
+        const res = await fetch("/api/assets/upload", { method: "POST", body: fd });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Finalize failed");
+      } else {
+        // Images go through the route for sharp optimization (small files).
+        const fd = new FormData();
+        fd.set("file", file);
+        fd.set("title", title || file.name);
+        const res = await fetch("/api/assets/upload", { method: "POST", body: fd });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Upload failed");
+      }
 
       toast("Asset uploaded", "success");
       router.refresh();
@@ -160,15 +171,6 @@ export default function AssetUploader({ onClose }: { onClose: () => void }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="mt-1.5 w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-muted-strong">Tags</span>
-            <input
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="comma, separated, tags"
-              className="mt-1.5 w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none"
             />
           </label>
         </div>

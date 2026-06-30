@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
     // so a Supabase project URL from env works without a code change.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
+  experimental: {
+    // Keep the client-side Router Cache warm so returning to an already-visited
+    // page (dashboard/campaign) is instant instead of re-fetching from scratch.
+    staleTimes: { dynamic: 60, static: 180 },
+  },
 };
 
 export default nextConfig;

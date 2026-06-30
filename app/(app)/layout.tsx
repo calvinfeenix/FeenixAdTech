@@ -19,7 +19,7 @@ export default async function AppLayout({
     <div className="flex h-full">
       <CardGlow />
       <Sidebar role={profile.role} isSuperAdmin={profile.is_super_admin} />
-      <div className="flex-1 lg:ml-[240px] relative h-screen overflow-y-auto">
+      <div className="app-content flex-1 relative h-screen overflow-y-auto">
         <Header profile={profile} />
         <main className="px-4 sm:px-6 pt-20 pb-8">{children}</main>
       </div>

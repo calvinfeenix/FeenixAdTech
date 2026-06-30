@@ -24,13 +24,17 @@ export default async function GamesPage() {
     if (url) icons[g.id] = url;
   }
 
+  // Per-game impressions/clicks/unique (admin-only DEFINER RPC).
+  const { data: statsData } = await supabase.rpc("games_analytics");
+  const stats = (statsData ?? {}) as Record<string, { impressions: number; clicks: number; uniqueUsers: number }>;
+
   return (
     <div className="space-y-6 fade-up">
       <PageHero
         title="Games Inventory"
         subtitle="Roblox experiences where Feenix can serve ads, and the individual ad locations within them."
       />
-      <GameManager games={games} icons={icons} />
+      <GameManager games={games} icons={icons} stats={stats} />
     </div>
   );
 }

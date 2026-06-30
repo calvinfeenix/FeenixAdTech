@@ -6,17 +6,22 @@ import { requireApproved } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { publicUrl, THUMB_BUCKET } from "@/lib/storage";
 import { campaignStatusColors, formatDate, initials } from "@/lib/utils";
+import { resolveRange } from "@/lib/analytics";
 import Badge from "@/components/badge";
 import CampaignActions from "@/components/campaign-actions";
+import RangePicker from "@/components/range-picker";
 import { CampaignAnalytics, AnalyticsSkeleton } from "@/components/analytics-sections";
 import type { Asset, Campaign, GameLocation, Profile } from "@/lib/types";
 
 export default async function CampaignDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ range?: string }>;
 }) {
   const { id } = await params;
+  const { range, fromIso } = resolveRange((await searchParams).range);
   const profile = await requireApproved();
   const isAdmin = profile.role === "admin";
   const supabase = await createClient();
@@ -59,27 +64,36 @@ export default async function CampaignDetailPage({
 
   return (
     <div className="space-y-6 fade-up">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      {/* Hero — dashboard-style games backdrop */}
+      <div className="relative -mt-20 -mx-4 sm:-mx-6 overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center bg-drift" style={{ backgroundImage: "url(/login-bg.png)" }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/55 via-background/75 to-background" />
+        <div className="relative px-4 sm:px-6 pt-20 pb-8">
           <Link href="/campaigns" className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground">
             <ArrowLeft size={15} /> Campaigns
           </Link>
-          <div className="flex items-center gap-3 mt-2">
-            <h1 className="text-3xl font-display font-bold text-foreground">{c.name}</h1>
-            <Badge className={campaignStatusColors[c.status]}>{c.status}</Badge>
+          <div className="flex items-start justify-between gap-4 mt-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-display font-bold text-foreground truncate">{c.name}</h1>
+                <Badge className={campaignStatusColors[c.status]}>{c.status}</Badge>
+              </div>
+              <p className="text-sm text-muted mt-1">
+                Flight: {c.flight_start ? formatDate(c.flight_start) : "—"} →{" "}
+                {c.flight_end ? formatDate(c.flight_end) : "Open"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <RangePicker value={range} />
+              {isAdmin && <CampaignActions id={c.id} />}
+            </div>
           </div>
-          <p className="text-sm text-muted mt-1">
-            Flight: {c.flight_start ? formatDate(c.flight_start) : "—"} →{" "}
-            {c.flight_end ? formatDate(c.flight_end) : "Open"}
-          </p>
         </div>
-        {isAdmin && <CampaignActions id={c.id} />}
       </div>
 
       {/* Metrics + trend + breakdowns stream in via the analytics RPC. */}
-      <Suspense fallback={<AnalyticsSkeleton />}>
-        <CampaignAnalytics campaignId={id} creativesCount={assets.length} gamesCount={games.length} />
+      <Suspense key={`analytics-${range}`} fallback={<AnalyticsSkeleton />}>
+        <CampaignAnalytics campaignId={id} creativesCount={assets.length} gamesCount={games.length} fromIso={fromIso} />
       </Suspense>
 
       {/* Targeting & creatives */}

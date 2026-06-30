@@ -112,6 +112,8 @@ export interface AnalyticsEvent {
   event_type: AnalyticsEventType;
   count: number;
   ts: string;
+  /** ISO 3166-1 alpha-2 region code of the player (e.g. "US"); null if unknown. */
+  country: string | null;
 }
 
 export interface CampaignAnalyticsSummary {
@@ -122,4 +124,5 @@ export interface CampaignAnalyticsSummary {
   daily: { date: string; impressions: number; clicks: number; uniqueUsers: number }[];
   byGame: { game: string; impressions: number }[];
   byLocation: { location: string; impressions: number }[];
+  byCountry: { country: string; impressions: number }[];
 }

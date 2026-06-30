@@ -33,6 +33,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
   }
 
+  // FINALIZE: a large original (video) was uploaded straight to Storage via a
+  // signed URL, so this request carries only its storage path + small metadata.
+  const storagePathIn = form.get("storagePath");
+  if (typeof storagePathIn === "string" && storagePathIn) {
+    return finalizeDirectUpload(form, storagePathIn, profile.id);
+  }
+
   const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -157,6 +164,74 @@ export async function POST(request: Request) {
 
   if (error) {
     // Roll back the orphaned storage objects on a DB failure.
+    await admin.storage.from(ASSET_BUCKET).remove([storagePath]);
+    if (thumbPath) await admin.storage.from(THUMB_BUCKET).remove([thumbPath]);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ asset: data });
+}
+
+/** Finalize a video that the browser already uploaded directly to Storage. */
+async function finalizeDirectUpload(form: FormData, storagePath: string, uploadedBy: string) {
+  const filename = String(form.get("filename") || "video.mp4");
+  const mime = String(form.get("mime") || "video/mp4");
+  const size = Number(form.get("size") || 0);
+  const title = String(form.get("title") ?? "").trim() || filename;
+  const tags = String(form.get("tags") ?? "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const id = (storagePath.split("/").pop() || crypto.randomUUID()).split(".")[0];
+
+  const admin = createAdminClient();
+  let thumbPath: string | null = null;
+  let duration: number | null = null;
+
+  try {
+    const durationRaw = form.get("duration");
+    if (durationRaw) duration = Number(durationRaw) || null;
+
+    const poster = form.get("poster");
+    if (poster instanceof File && poster.size > 0) {
+      const posterBuf = Buffer.from(await poster.arrayBuffer());
+      const thumb = await sharp(posterBuf, { failOn: "none" })
+        .resize({ width: 400, height: 400, fit: "cover" })
+        .webp({ quality: 70 })
+        .toBuffer();
+      thumbPath = `video/${id}.webp`;
+      const upThumb = await admin.storage
+        .from(THUMB_BUCKET)
+        .upload(thumbPath, thumb, { contentType: "image/webp", upsert: true });
+      if (upThumb.error) throw upThumb.error;
+    }
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Poster processing failed: ${String((err as Error).message ?? err)}` },
+      { status: 500 }
+    );
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("assets")
+    .insert({
+      id,
+      uploaded_by: uploadedBy,
+      type: "video",
+      title,
+      original_filename: filename,
+      storage_path: storagePath,
+      thumb_path: thumbPath,
+      mime,
+      size_bytes: size,
+      duration_seconds: duration,
+      tags,
+    })
+    .select()
+    .single();
+
+  if (error) {
     await admin.storage.from(ASSET_BUCKET).remove([storagePath]);
     if (thumbPath) await admin.storage.from(THUMB_BUCKET).remove([thumbPath]);
     return NextResponse.json({ error: error.message }, { status: 500 });
