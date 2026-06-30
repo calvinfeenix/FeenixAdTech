@@ -23,7 +23,7 @@ export default async function AdminUsersPage() {
           Approve sign-up requests and manage admin privileges.
         </p>
       </div>
-      <UsersManager users={users} currentUserId={me.id} />
+      <UsersManager users={users} currentUserId={me.id} isSuperAdmin={me.is_super_admin} />
     </div>
   );
 }

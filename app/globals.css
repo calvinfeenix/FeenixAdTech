@@ -1,38 +1,40 @@
 /* Google Fonts must be imported before the Tailwind import (CSS @import ordering). */
-@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Feenix AdTech — brand theme (modeled on feenixgroup.com).
-   True-black surfaces, lime-green primary accent, electric-blue secondary,
-   heavy Archivo display type over an Inter body.
+   Feenix AdTech — brand theme (2026 refresh).
+   Deep-navy surfaces, sky-blue primary accent, blossom-green for positive
+   data, heavy Archivo display type over an Inter body. Palette from the
+   Feenix brand deck (Deep Blue #00081F → Sky Blue #66CCFF).
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #000000;
-  --surface: #0c0c0e;
-  --card: #131316;
-  --card-hover: #1b1b1f;
-  --foreground: #f5f6f8;
-  --muted: #8e8e98;
-  --muted-strong: #b8b8c2;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  /* Exact codes from the Feenix brand palette. */
+  --background: #00081f;       /* Deep Blue */
+  --surface: #020b25;          /* Prussian Blue — wells / inputs */
+  --card: #020b25;             /* Prussian Blue — cards */
+  --card-hover: #1f2a44;       /* Space Indigo — elevated */
+  --foreground: #ffffff;       /* Full White */
+  --muted: #7a7a7a;            /* Grey */
+  --muted-strong: #cbe7f6;     /* Light Blue */
+  --border: #1f2a44;           /* Space Indigo */
+  --border-strong: #2c3a5c;
 
-  /* Lime-green primary (the brand CTA / highlight colour) */
-  --accent: #c2f23c;
-  --accent-hover: #d2ff52;
-  --accent-soft: rgba(194, 242, 60, 0.14);
+  /* Sky-blue primary (CTA / highlight / links) */
+  --accent: #66ccff;           /* Sky Blue */
+  --accent-hover: #88d0f4;     /* Frozen Lake */
+  --accent-soft: rgba(102, 204, 255, 0.14);
 
-  /* Electric-blue secondary (used for the "WORK" highlight, BRANDS tile, etc.) */
-  --accent-2: #29abe2;
-  --accent-2-soft: rgba(41, 171, 226, 0.16);
+  /* Digital-blue secondary (section headings) */
+  --accent-2: #1677ff;         /* Digital Blue */
+  --accent-2-soft: rgba(22, 119, 255, 0.16);
 
-  --success: #16c784;
-  --warning: #ffb020;
-  --danger: #ff4d4f;
+  --success: #00ff6c;          /* Blossom */
+  --warning: #fb923c;          /* Orange */
+  --danger: #ef4452;           /* Hot Fuchsia */
 
-  --sidebar-bg: #000000;
-  --sidebar-text: #8e8e98;
+  --sidebar-bg: #000000;       /* Full Black */
+  --sidebar-text: #7a7a7a;     /* Grey */
   --sidebar-active: #ffffff;
 }
 
@@ -81,11 +83,18 @@ h1, h2, h3, .font-display {
   color: var(--accent);
 }
 
-/* Brand glow used on hero / auth panels (lime + blue) */
+/* Brand glow used on hero / auth panels (sky-blue + green over deep navy) */
 .flame-gradient {
   background:
-    radial-gradient(1100px 600px at 100% -10%, rgba(194, 242, 60, 0.12), transparent 60%),
-    radial-gradient(900px 520px at -10% 110%, rgba(41, 171, 226, 0.12), transparent 60%);
+    radial-gradient(1100px 600px at 100% -10%, rgba(102, 204, 255, 0.16), transparent 60%),
+    radial-gradient(900px 520px at -10% 110%, rgba(0, 255, 108, 0.08), transparent 60%);
+}
+
+/* Rounded brand wordmark face (matches the "feenix" logotype) */
+.font-brand {
+  font-family: "Baloo 2", "Archivo", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 /* Scrollbar */

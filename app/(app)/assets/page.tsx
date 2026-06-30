@@ -1,11 +1,11 @@
-import { requireApproved } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { publicUrl, ASSET_BUCKET, THUMB_BUCKET } from "@/lib/storage";
 import AssetGallery from "@/components/asset-gallery";
 import type { Asset } from "@/lib/types";
 
 export default async function AssetsPage() {
-  const profile = await requireApproved();
+  const profile = await requireAdmin();
   const supabase = await createClient();
 
   const { data } = await supabase

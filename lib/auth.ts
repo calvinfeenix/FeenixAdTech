@@ -39,3 +39,10 @@ export async function requireAdmin(): Promise<Profile> {
   if (profile.role !== "admin") redirect("/dashboard");
   return profile;
 }
+
+/** Guard for super-admin-only pages (e.g. Settings). Redirects others away. */
+export async function requireSuperAdmin(): Promise<Profile> {
+  const profile = await requireApproved();
+  if (!profile.is_super_admin) redirect("/dashboard");
+  return profile;
+}

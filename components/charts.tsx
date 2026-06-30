@@ -13,15 +13,15 @@ import {
   YAxis,
 } from "recharts";
 
-const AXIS = "#8e8e98";
-const GRID = "rgba(255,255,255,0.06)";
-const COLORS = ["#c2f23c", "#29abe2", "#16c784", "#b06bff", "#ffb020", "#ff6ba6"];
+const AXIS = "#8294b8";
+const GRID = "rgba(102,204,255,0.07)";
+const COLORS = ["#66CCFF", "#00FF6C", "#1677FF", "#FB923C", "#EC4899", "#EF4452"];
 
 const tooltipStyle = {
-  background: "#141419",
-  border: "1px solid rgba(255,255,255,0.12)",
+  background: "#05143a",
+  border: "1px solid rgba(102,204,255,0.25)",
   borderRadius: 12,
-  color: "#f4f4f6",
+  color: "#f3f8ff",
   fontSize: 12,
 };
 
@@ -39,12 +39,12 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id="g-impr" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c2f23c" stopOpacity={0.5} />
-            <stop offset="100%" stopColor="#c2f23c" stopOpacity={0} />
+            <stop offset="0%" stopColor="#00FF6C" stopOpacity={0.45} />
+            <stop offset="100%" stopColor="#00FF6C" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="g-uu" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#29abe2" stopOpacity={0.4} />
-            <stop offset="100%" stopColor="#29abe2" stopOpacity={0} />
+            <stop offset="0%" stopColor="#66CCFF" stopOpacity={0.4} />
+            <stop offset="100%" stopColor="#66CCFF" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid stroke={GRID} vertical={false} />
@@ -57,9 +57,9 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
         />
         <YAxis tick={{ fill: AXIS, fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
         <Tooltip contentStyle={tooltipStyle} />
-        <Area type="monotone" name="Impressions" dataKey="impressions" stroke="#c2f23c" fill="url(#g-impr)" strokeWidth={2} />
-        <Area type="monotone" name="Unique users" dataKey="uniqueUsers" stroke="#29abe2" fill="url(#g-uu)" strokeWidth={2} />
-        <Area type="monotone" name="Clicks" dataKey="clicks" stroke="#16c784" fill="transparent" strokeWidth={2} />
+        <Area type="monotone" name="Impressions" dataKey="impressions" stroke="#00FF6C" fill="url(#g-impr)" strokeWidth={2} />
+        <Area type="monotone" name="Unique users" dataKey="uniqueUsers" stroke="#66CCFF" fill="url(#g-uu)" strokeWidth={2} />
+        <Area type="monotone" name="Clicks" dataKey="clicks" stroke="#FB923C" fill="transparent" strokeWidth={2} />
       </AreaChart>
     </ResponsiveContainer>
   );

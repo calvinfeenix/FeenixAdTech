@@ -13,6 +13,8 @@ export interface Profile {
   full_name: string | null;
   role: UserRole;
   status: UserStatus;
+  /** Super admins can remove users (the only privilege beyond a normal admin). */
+  is_super_admin: boolean;
 }
 
 export type AssetType = "image" | "video" | "audio";

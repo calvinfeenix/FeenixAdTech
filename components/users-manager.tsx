@@ -2,19 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Shield, ShieldOff, Clock } from "lucide-react";
+import { Check, X, Shield, ShieldOff, Clock, Trash2 } from "lucide-react";
 import { useToast } from "@/components/toast";
 import Badge from "@/components/badge";
 import { initials, roleColors, userStatusColors, formatDate } from "@/lib/utils";
-import { setUserRole, setUserStatus } from "@/app/(app)/admin/users/actions";
+import { setUserRole, setUserStatus, removeUser } from "@/app/(app)/admin/users/actions";
 import type { Profile } from "@/lib/types";
 
 export default function UsersManager({
   users,
   currentUserId,
+  isSuperAdmin,
 }: {
   users: Profile[];
   currentUserId: string;
+  isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -103,6 +105,19 @@ export default function UsersManager({
                   </button>
                 )}
               </>
+            )}
+            {/* Super-admin-only: permanently remove the user. */}
+            {isSuperAdmin && (
+              <button
+                disabled={disabled}
+                onClick={() => {
+                  if (confirm(`Remove ${u.username}? This permanently deletes their account.`))
+                    run(u.id, () => removeUser(u.id), "User removed");
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-danger/15 text-danger hover:bg-danger/25 disabled:opacity-50"
+              >
+                <Trash2 size={14} /> Remove
+              </button>
             )}
           </div>
         )}

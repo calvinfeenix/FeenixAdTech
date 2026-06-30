@@ -52,6 +52,7 @@ async function setProfile(
     full_name: string;
     role: "user" | "admin";
     status: "pending" | "approved" | "rejected";
+    is_super_admin?: boolean;
   }
 ) {
   // Upsert (don't rely on the handle_new_user trigger) so the seed is
@@ -91,6 +92,7 @@ async function main() {
     full_name: "Feenix Admin",
     role: "admin",
     status: "approved",
+    is_super_admin: true,
   });
   console.log(`  ✓ Admin  FEENIX  (password: ${ADMIN_PASSWORD})`);
 

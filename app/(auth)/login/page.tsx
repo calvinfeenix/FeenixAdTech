@@ -26,7 +26,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
+    <div className="bg-[#0b0c11] border border-white/10 rounded-2xl p-8 shadow-2xl">
       <h2 className="text-xl font-display font-semibold text-foreground">Welcome back</h2>
       <p className="text-sm text-muted mt-1">Sign in to your Feenix AdTech account.</p>
 
@@ -54,6 +54,11 @@ export default function LoginPage() {
         Don&apos;t have an account?{" "}
         <Link href="/signup" className="text-accent hover:underline">
           Request access
+        </Link>
+      </p>
+      <p className="text-sm text-center mt-1">
+        <Link href="/login" className="text-accent hover:underline">
+          Forgot password?
         </Link>
       </p>
     </div>

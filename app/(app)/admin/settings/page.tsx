@@ -1,9 +1,9 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
 import { getRobloxSettingsView } from "@/lib/settings";
 import SettingsForm from "@/components/settings-form";
 
 export default async function SettingsPage() {
-  await requireAdmin();
+  await requireSuperAdmin();
   const settings = await getRobloxSettingsView();
 
   return (

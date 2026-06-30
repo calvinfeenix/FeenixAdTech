@@ -20,8 +20,8 @@ export default function Header({ profile }: { profile: Profile }) {
   }
 
   return (
-    <header className="h-16 bg-surface/80 backdrop-blur border-b border-border flex items-center justify-end px-6 sticky top-0 z-20">
-      <div className="relative">
+    <header className="fixed top-0 right-0 left-0 lg:left-[240px] z-30 h-16 flex items-center justify-end px-4 sm:px-6 bg-gradient-to-b from-background/70 to-transparent pointer-events-none">
+      <div className="relative pointer-events-auto">
         <button
           onClick={() => setOpen((o) => !o)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}

@@ -18,6 +18,8 @@ create table if not exists profiles (
   role        text not null default 'user'    check (role in ('user','admin')),
   status      text not null default 'pending' check (status in ('pending','approved','rejected'))
 );
+-- Super admin: a normal admin that can ALSO remove users (and sees Settings).
+alter table profiles add column if not exists is_super_admin boolean not null default false;
 create index if not exists idx_profiles_status on profiles(status);
 create index if not exists idx_profiles_role on profiles(role);
 

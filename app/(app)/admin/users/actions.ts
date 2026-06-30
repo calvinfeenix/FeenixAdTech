@@ -47,3 +47,20 @@ export async function setUserRole(userId: string, role: UserRole): Promise<Actio
   revalidatePath("/admin/users");
   return { ok: true };
 }
+
+/**
+ * Permanently remove a user — SUPER ADMIN ONLY (the one privilege beyond a
+ * normal admin). Deletes the auth user; the profile row cascades away with it.
+ */
+export async function removeUser(userId: string): Promise<ActionResult> {
+  const me = await getSessionProfile();
+  if (!me || me.status !== "approved" || !me.is_super_admin)
+    return { error: "Only a super admin can remove users." };
+  if (me.id === userId) return { error: "You can't remove yourself." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/users");
+  return { ok: true };
+}

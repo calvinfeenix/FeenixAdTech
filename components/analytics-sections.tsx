@@ -1,6 +1,7 @@
 import { Eye, MousePointerClick, Users, Megaphone, Gamepad2, Activity } from "lucide-react";
 import { createClient } from "@/lib/supabase-server";
 import { fetchCampaignAnalytics } from "@/lib/analytics";
+import { fetchGameIcons } from "@/lib/roblox-icons";
 import { formatCompact, formatPercent } from "@/lib/utils";
 import StatCard from "@/components/stat-card";
 import EmptyState from "@/components/empty-state";
@@ -57,6 +58,56 @@ export async function DashboardAnalytics({
           <h2 className="text-sm font-semibold text-foreground mb-4">Delivery trend</h2>
           <TrendChart data={summary.daily} />
         </div>
+      )}
+    </div>
+  );
+}
+
+/** "Best Performing Experiences" — top games by impressions with live Roblox icons. */
+export async function TopGames({ campaignIds }: { campaignIds: string[] }) {
+  const supabase = await createClient();
+  const summary = await fetchCampaignAnalytics(supabase, campaignIds);
+  const top = summary.byGame.filter((g) => g.game && g.game !== "Unattributed").slice(0, 5);
+
+  let icons = new Map<string, string>();
+  if (top.length) {
+    const { data: games } = await supabase.from("games").select("name, roblox_place_id");
+    const placeByName = new Map((games ?? []).map((g) => [g.name as string, g.roblox_place_id as string]));
+    icons = await fetchGameIcons(top.map((t) => placeByName.get(t.game)));
+    // re-key by game name for render
+    const byName = new Map<string, string>();
+    for (const t of top) {
+      const pid = placeByName.get(t.game);
+      const url = pid ? icons.get(pid) : undefined;
+      if (url) byName.set(t.game, url);
+    }
+    icons = byName;
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 h-full">
+      {top.length === 0 ? (
+        <p className="text-sm text-muted py-6 text-center">No game impressions yet.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {top.map((g, i) => (
+            <li key={g.game} className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-muted w-4 text-center">{i + 1}</span>
+              <div className="w-9 h-9 rounded-lg overflow-hidden bg-surface border border-border shrink-0 flex items-center justify-center">
+                {icons.get(g.game) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={icons.get(g.game)} alt={g.game} className="w-full h-full object-cover" />
+                ) : (
+                  <Gamepad2 size={16} className="text-muted" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{g.game}</p>
+                <p className="text-xs text-muted">{formatCompact(g.impressions)} impressions</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
