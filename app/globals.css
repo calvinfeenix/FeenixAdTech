@@ -33,7 +33,7 @@
   --warning: #fb923c;          /* Orange */
   --danger: #ef4452;           /* Hot Fuchsia */
 
-  --sidebar-bg: #000000;       /* Full Black */
+  --sidebar-bg: #0a0a0a;       /* near-black (figma) */
   --sidebar-text: #7a7a7a;     /* Grey */
   --sidebar-active: #ffffff;
 }
@@ -121,3 +121,35 @@ h1, h2, h3, .font-display {
   to { transform: translateY(0); opacity: 1; }
 }
 .fade-up { animation: fade-up 0.35s ease-out both; }
+
+/* GPU-only drift for the games hero/login backdrop (transform = cheap). Scale
+   stays >1 so the pan never reveals an edge. */
+@keyframes bg-drift {
+  0%   { transform: scale(1.18) translate3d(3.5%, 2%, 0); }
+  50%  { transform: scale(1.18) translate3d(-3.5%, -2.5%, 0); }
+  100% { transform: scale(1.18) translate3d(3.5%, 2%, 0); }
+}
+.bg-drift { animation: bg-drift 26s ease-in-out infinite; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .bg-drift { animation: none; } }
+
+/* Mouse-follow gradient glow on interactive cards (brand colours). The cursor
+   position is fed in as --mx/--my by the CardGlow listener; pure CSS otherwise. */
+.card-glow { position: relative; isolation: isolate; }
+.card-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    340px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(102, 204, 255, 0.4),
+    rgba(22, 119, 255, 0.16) 42%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.card-glow:hover::after { opacity: 1; }
+.card-glow:hover { border-color: rgba(102, 204, 255, 0.45); }

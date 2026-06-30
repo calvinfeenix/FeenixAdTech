@@ -9,7 +9,7 @@
  */
 const BASE = "https://apis.roblox.com";
 
-export type RobloxAssetType = "Decal" | "Audio";
+export type RobloxAssetType = "Decal" | "Audio" | "Video";
 
 /** A typed failure we can branch on / surface to the admin. */
 export class RobloxError extends Error {

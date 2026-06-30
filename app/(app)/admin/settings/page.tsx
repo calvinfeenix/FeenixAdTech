@@ -1,6 +1,7 @@
 import { requireSuperAdmin } from "@/lib/auth";
 import { getRobloxSettingsView } from "@/lib/settings";
 import SettingsForm from "@/components/settings-form";
+import PageHero from "@/components/page-hero";
 
 export default async function SettingsPage() {
   await requireSuperAdmin();
@@ -8,12 +9,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6 fade-up">
-      <div>
-        <h1 className="text-2xl font-display font-bold text-foreground">Settings</h1>
-        <p className="text-muted text-sm mt-1">
-          Organization integrations. These apply to every admin.
-        </p>
-      </div>
+      <PageHero title="Settings" subtitle="Organization integrations. These apply to every admin." />
       <SettingsForm settings={settings} />
     </div>
   );

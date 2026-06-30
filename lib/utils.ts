@@ -9,10 +9,10 @@ import type {
 
 /** Tailwind class pairs for status / type badges (dark theme friendly). */
 export const campaignStatusColors: Record<CampaignStatus, string> = {
-  draft: "bg-white/8 text-muted-strong",
-  active: "bg-emerald-500/15 text-emerald-400",
-  paused: "bg-amber-500/15 text-amber-400",
-  completed: "bg-sky-500/15 text-sky-400",
+  draft: "bg-white/8 text-muted-strong border border-white/10",
+  active: "bg-[#064E3B]/30 text-emerald-300 border border-[#064E3B]",
+  paused: "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+  completed: "bg-sky-500/15 text-sky-400 border border-sky-500/30",
 };
 
 export const userStatusColors: Record<UserStatus, string> = {

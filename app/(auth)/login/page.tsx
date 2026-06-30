@@ -84,7 +84,7 @@ function Field({
         type={type}
         autoComplete={autoComplete}
         required
-        className="mt-1.5 w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none transition-colors"
+        className="mt-1.5 w-full bg-black border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none transition-colors"
       />
     </label>
   );

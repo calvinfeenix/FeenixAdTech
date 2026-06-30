@@ -1,5 +1,6 @@
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
+import CardGlow from "@/components/card-glow";
 import { requireApproved } from "@/lib/auth";
 
 /**
@@ -16,10 +17,11 @@ export default async function AppLayout({
 
   return (
     <div className="flex h-full">
+      <CardGlow />
       <Sidebar role={profile.role} isSuperAdmin={profile.is_super_admin} />
-      <div className="flex-1 lg:ml-[240px] flex flex-col min-h-screen">
+      <div className="flex-1 lg:ml-[240px] relative h-screen overflow-y-auto">
         <Header profile={profile} />
-        <main className="flex-1 px-4 sm:px-6 pt-20 pb-8 overflow-auto">{children}</main>
+        <main className="px-4 sm:px-6 pt-20 pb-8">{children}</main>
       </div>
     </div>
   );

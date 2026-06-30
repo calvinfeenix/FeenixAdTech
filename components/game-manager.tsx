@@ -18,7 +18,13 @@ import { gameStatusColors } from "@/lib/utils";
 import { addLocation, createGame, deleteGame, deleteLocation } from "@/app/(app)/games/actions";
 import type { Game } from "@/lib/types";
 
-export default function GameManager({ games }: { games: Game[] }) {
+export default function GameManager({
+  games,
+  icons = {},
+}: {
+  games: Game[];
+  icons?: Record<string, string>;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -79,9 +85,17 @@ export default function GameManager({ games }: { games: Game[] }) {
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {games.map((g) => (
-            <div key={g.id} className="bg-card border border-border rounded-xl p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+            <div key={g.id} className="card-glow bg-card border border-border rounded-xl p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-surface border border-border shrink-0 flex items-center justify-center">
+                  {icons[g.id] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={icons[g.id]} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Gamepad2 size={20} className="text-muted" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium text-foreground truncate">{g.name}</h3>
                     <Badge className={gameStatusColors[g.status]}>{g.status}</Badge>

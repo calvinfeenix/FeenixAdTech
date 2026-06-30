@@ -237,8 +237,8 @@ export default function AssetGallery({
                   setInspect(a);
                 }
               }}
-              className={`group text-left bg-card border border-border rounded-xl overflow-hidden transition-colors ${
-                isAdmin ? "hover:border-border-strong cursor-pointer" : "cursor-default"
+              className={`card-glow group text-left bg-card border border-border rounded-xl overflow-hidden transition-colors ${
+                isAdmin ? "cursor-pointer" : "cursor-default"
               }`}
             >
               <div className="relative aspect-square bg-surface flex items-center justify-center overflow-hidden">
@@ -248,7 +248,7 @@ export default function AssetGallery({
                     src={a.thumb_url}
                     alt={a.title}
                     loading="lazy"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                   />
                 ) : a.type === "audio" ? (
                   <Music size={32} className="text-muted" />
@@ -361,16 +361,16 @@ export default function AssetGallery({
                 )}
                 {inspect.type === "video" && (
                   <p className="text-xs text-muted mt-2">
-                    Roblox doesn&apos;t allow video upload via Open Cloud. Upload the video through
-                    Roblox, then paste its asset ID below to serve it on VideoFrames.
+                    Video publishes via Open Cloud (needs a 13+ ID-verified creator account; .mp4/.mov,
+                    ≤5 min) and plays on VideoFrames. Or upload it on Roblox and paste its asset ID below.
                   </p>
                 )}
-                {/* Manual Roblox asset ID — required for video, optional reuse for image/audio */}
+                {/* Manual Roblox asset ID — Image (Texture) ID for images, asset ID for video */}
                 <div className="flex items-center gap-2 mt-3">
                   <input
                     value={manualId}
                     onChange={(e) => setManualId(e.target.value)}
-                    placeholder="Roblox Texture ID (use Copy Texture ID)"
+                    placeholder={inspect.type === "video" ? "Roblox video asset ID" : "Roblox Texture ID (Copy Texture ID)"}
                     inputMode="numeric"
                     className="flex-1 bg-surface border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground placeholder-muted focus:border-accent focus:outline-none"
                   />
@@ -387,17 +387,16 @@ export default function AssetGallery({
 
             <div className="flex items-center justify-between px-5 py-4 border-t border-border shrink-0">
               <div className="flex items-center gap-2">
-                {inspect.type !== "video" &&
-                  ["not_published", "failed", "rejected"].includes(inspect.roblox_status) && (
-                    <button
-                      onClick={() => onPublish(inspect)}
-                      disabled={robloxBusy}
-                      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-accent hover:bg-accent-hover text-black font-semibold transition-all duration-200 hover:shadow-[0_4px_20px_-4px_var(--accent)] active:scale-95 disabled:opacity-50"
-                    >
-                      {robloxBusy ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
-                      {inspect.roblox_status === "not_published" ? "Publish to Roblox" : "Retry publish"}
-                    </button>
-                  )}
+                {["not_published", "failed", "rejected"].includes(inspect.roblox_status) && (
+                  <button
+                    onClick={() => onPublish(inspect)}
+                    disabled={robloxBusy}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-accent hover:bg-accent-hover text-black font-semibold transition-all duration-200 hover:shadow-[0_4px_20px_-4px_var(--accent)] active:scale-95 disabled:opacity-50"
+                  >
+                    {robloxBusy ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                    {inspect.roblox_status === "not_published" ? "Publish to Roblox" : "Retry publish"}
+                  </button>
+                )}
                 {["processing", "reviewing", "uploading"].includes(inspect.roblox_status) && (
                   <button
                     onClick={() => onRefresh(inspect)}

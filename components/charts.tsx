@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatCompact } from "@/lib/utils";
 
 const AXIS = "#8294b8";
 const GRID = "rgba(102,204,255,0.07)";
@@ -36,7 +37,7 @@ export interface TrendPoint {
 export function TrendChart({ data }: { data: TrendPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
         <defs>
           <linearGradient id="g-impr" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#00FF6C" stopOpacity={0.45} />
@@ -55,11 +56,50 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
           tickLine={false}
           axisLine={false}
         />
-        <YAxis tick={{ fill: AXIS, fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
+        <YAxis
+          tick={{ fill: AXIS, fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          width={44}
+          tickFormatter={(v: number) => formatCompact(v)}
+        />
         <Tooltip contentStyle={tooltipStyle} />
-        <Area type="monotone" name="Impressions" dataKey="impressions" stroke="#00FF6C" fill="url(#g-impr)" strokeWidth={2} />
-        <Area type="monotone" name="Unique users" dataKey="uniqueUsers" stroke="#66CCFF" fill="url(#g-uu)" strokeWidth={2} />
-        <Area type="monotone" name="Clicks" dataKey="clicks" stroke="#FB923C" fill="transparent" strokeWidth={2} />
+        <Area
+          type="monotone"
+          name="Impressions"
+          dataKey="impressions"
+          stroke="#00FF6C"
+          fill="url(#g-impr)"
+          strokeWidth={2}
+          isAnimationActive
+          animationBegin={0}
+          animationDuration={1500}
+          animationEasing="ease-out"
+        />
+        <Area
+          type="monotone"
+          name="Unique users"
+          dataKey="uniqueUsers"
+          stroke="#66CCFF"
+          fill="url(#g-uu)"
+          strokeWidth={2}
+          isAnimationActive
+          animationBegin={250}
+          animationDuration={1500}
+          animationEasing="ease-out"
+        />
+        <Area
+          type="monotone"
+          name="Clicks"
+          dataKey="clicks"
+          stroke="#FB923C"
+          fill="transparent"
+          strokeWidth={2}
+          isAnimationActive
+          animationBegin={500}
+          animationDuration={1500}
+          animationEasing="ease-out"
+        />
       </AreaChart>
     </ResponsiveContainer>
   );

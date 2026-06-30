@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase";
-import { initials, roleColors } from "@/lib/utils";
+import { initials } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
 export default function Header({ profile }: { profile: Profile }) {
@@ -20,7 +20,7 @@ export default function Header({ profile }: { profile: Profile }) {
   }
 
   return (
-    <header className="fixed top-0 right-0 left-0 lg:left-[240px] z-30 h-16 flex items-center justify-end px-4 sm:px-6 bg-gradient-to-b from-background/70 to-transparent pointer-events-none">
+    <header className="absolute top-0 inset-x-0 z-30 h-16 flex items-center justify-end px-4 sm:px-6 bg-gradient-to-b from-background/70 to-transparent pointer-events-none">
       <div className="relative pointer-events-auto">
         <button
           onClick={() => setOpen((o) => !o)}
@@ -30,9 +30,9 @@ export default function Header({ profile }: { profile: Profile }) {
           <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-sm font-semibold">
             {initials(display)}
           </div>
-          <div className="text-left hidden sm:block">
+          <div className="hidden sm:block text-center">
             <p className="text-sm font-medium text-foreground leading-tight">{display}</p>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${roleColors[profile.role]}`}>
+            <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">
               {profile.role}
             </span>
           </div>

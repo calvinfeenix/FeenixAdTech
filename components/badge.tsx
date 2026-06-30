@@ -7,7 +7,7 @@ export default function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium capitalize ${className}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium capitalize ${className}`}
     >
       {children}
     </span>

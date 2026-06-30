@@ -85,8 +85,9 @@ export async function setRobloxAssetIdManually(
 
 /**
  * Publish a Feenix asset to Roblox via Open Cloud. Images are re-encoded to PNG
- * (Roblox Decals reject WebP); audio is uploaded as stored. Errors are recorded
- * on the row as `failed` + a human message so the UI can show what went wrong.
+ * (Roblox Decals reject WebP) and made Open Use; video (.mp4/.mov) uploads as a
+ * Video asset for VideoFrame playback (requires a 13+ ID-verified creator).
+ * Errors are recorded on the row as `failed` + a human message for the UI.
  */
 export async function publishAssetToRoblox(assetId: string): Promise<ActionResult> {
   if (!(await assertAdmin())) return { error: "Forbidden" };
@@ -103,8 +104,8 @@ export async function publishAssetToRoblox(assetId: string): Promise<ActionResul
     .single();
   if (!asset) return { error: "Asset not found." };
 
-  if (asset.type === "video")
-    return { error: "Roblox Open Cloud can't host video assets — images and audio only." };
+  if (asset.type === "video" && !/(mp4|quicktime|mov)/i.test(asset.mime || asset.original_filename || ""))
+    return { error: "Roblox only accepts .mp4 or .mov video. Re-upload this creative as MP4." };
 
   // Download the stored file.
   const dl = await admin.storage.from(ASSET_BUCKET).download(asset.storage_path);
@@ -121,6 +122,12 @@ export async function publishAssetToRoblox(assetId: string): Promise<ActionResul
     robloxType = "Decal";
     contentType = "image/png";
     filename = `${asset.id}.png`;
+  } else if (asset.type === "video") {
+    // Open Cloud accepts .mp4/.mov video (13+ ID-verified creators). Uploaded as
+    // stored; the resulting asset id plays directly on a VideoFrame.
+    robloxType = "Video";
+    contentType = /quicktime|mov/i.test(asset.mime || "") ? "video/mov" : "video/mp4";
+    filename = asset.original_filename || `${asset.id}.mp4`;
   } else {
     robloxType = "Audio";
     contentType = asset.mime || "audio/mpeg";
@@ -151,18 +158,17 @@ export async function publishAssetToRoblox(assetId: string): Promise<ActionResul
     const finalAssetId = outcome.assetId ?? null;
     const status = outcomeToStatus(outcome);
 
-    // Make the uploaded asset usable in ANY experience (Open Use). For an image
-    // this uploads as a Decal; granting with dependencies cascades to the
-    // underlying Image/texture, so it's public once the admin sets the Image id.
+    // Make IMAGES usable in any experience (Open Use). Roblox doesn't allow the
+    // "All" subject for video/audio, so we only grant it for decals/images.
     let note: string | null = null;
-    if (finalAssetId) {
+    if (finalAssetId && asset.type === "image") {
       const grant = await grantOpenUse(apiKey, finalAssetId);
       if (!grant.ok) note = `Couldn't auto-set Open Use (${grant.message}).`;
-    }
-    // Images come back as a Decal id, which an ImageLabel can't render. We can't
-    // fetch the Image id server-side, so guide the admin to paste it.
-    if (asset.type === "image" && finalAssetId) {
+      // A Decal id can't be rendered by an ImageLabel — guide the admin to the Image id.
       note = `Published as a Decal and set to Open Use. To make it render in-game, open the asset on Roblox, click "Copy Texture ID", and paste that Image id below.${note ? " " + note : ""}`;
+    }
+    if (finalAssetId && asset.type === "video") {
+      note = `Video uploaded to Roblox (asset ${finalAssetId}) — it plays directly on a VideoFrame. Roblox doesn't allow Open Use for video, so it's usable in experiences you own or explicitly grant access to.`;
     }
 
     await persist(assetId, {

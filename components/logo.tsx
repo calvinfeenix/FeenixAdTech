@@ -17,15 +17,13 @@ export default function Logo({ size = 32 }: { size?: number }) {
   );
 }
 
-/** Full "feenix AdTech" lockup (mark + wordmark). `size` is the wordmark cap size. */
+/** Full "feenix AdTech" lockup: the brand mark + the official wordmark SVG. */
 export function Wordmark({ size = 24, mark = true }: { size?: number; mark?: boolean }) {
   return (
-    <div className="flex items-center" style={{ gap: size * 0.42 }}>
-      {mark && <Logo size={Math.round(size * 1.55)} />}
-      <span style={{ fontSize: size }} className="leading-none whitespace-nowrap">
-        <span className="font-brand text-foreground">feenix</span>
-        <span className="font-sans font-normal text-muted-strong ml-[0.32em]">AdTech</span>
-      </span>
+    <div className="flex items-center" style={{ gap: size * 0.4 }}>
+      {mark && <Logo size={Math.round(size * 1.35)} />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/LogoVectorDashboard.svg" alt="feenix AdTech" style={{ height: size * 0.72 }} className="w-auto" />
     </div>
   );
 }

@@ -2,8 +2,8 @@
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-10 overflow-hidden">
-      {/* Blurred Roblox-games backdrop + dark wash (lighter, so games show through) */}
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/login-bg.png)" }} />
+      {/* Blurred Roblox-games backdrop (slow drift) + dark wash */}
+      <div className="absolute inset-0 bg-cover bg-center bg-drift" style={{ backgroundImage: "url(/login-bg.png)" }} />
       <div className="absolute inset-0 bg-background/60" />
 
       <div className="relative mb-8">

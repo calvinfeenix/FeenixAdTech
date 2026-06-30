@@ -66,7 +66,7 @@ export default async function CampaignDetailPage({
             <ArrowLeft size={15} /> Campaigns
           </Link>
           <div className="flex items-center gap-3 mt-2">
-            <h1 className="text-2xl font-display font-bold text-foreground">{c.name}</h1>
+            <h1 className="text-3xl font-display font-bold text-foreground">{c.name}</h1>
             <Badge className={campaignStatusColors[c.status]}>{c.status}</Badge>
           </div>
           <p className="text-sm text-muted mt-1">

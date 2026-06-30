@@ -24,7 +24,7 @@ export default async function NewCampaignPage() {
   return (
     <div className="space-y-6 fade-up">
       <div>
-        <h1 className="text-2xl font-display font-bold text-foreground">New Campaign</h1>
+        <h1 className="text-3xl font-display font-bold text-foreground">New Campaign</h1>
         <p className="text-muted text-sm mt-1">
           Configure delivery, assign viewers, and target games and locations.
         </p>

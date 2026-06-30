@@ -5,7 +5,7 @@ import { fetchGameIcons } from "@/lib/roblox-icons";
 import { formatCompact, formatPercent } from "@/lib/utils";
 import StatCard from "@/components/stat-card";
 import EmptyState from "@/components/empty-state";
-import { TrendChart, BreakdownChart } from "@/components/charts";
+import { TrendChart, BreakdownChart } from "@/components/charts-lazy";
 
 /**
  * Lazy-loaded analytics sections. These are async server components rendered
@@ -67,7 +67,7 @@ export async function DashboardAnalytics({
 export async function TopGames({ campaignIds }: { campaignIds: string[] }) {
   const supabase = await createClient();
   const summary = await fetchCampaignAnalytics(supabase, campaignIds);
-  const top = summary.byGame.filter((g) => g.game && g.game !== "Unattributed").slice(0, 5);
+  const top = summary.byGame.filter((g) => g.game && g.game !== "Unattributed").slice(0, 3);
 
   let icons = new Map<string, string>();
   if (top.length) {
@@ -84,30 +84,37 @@ export async function TopGames({ campaignIds }: { campaignIds: string[] }) {
     icons = byName;
   }
 
+  const names =
+    top.length === 0
+      ? "No game impressions yet."
+      : top.slice(0, 2).map((t) => t.game).join(", ") + (top.length > 2 ? ", and more" : "");
+
   return (
-    <div className="bg-card border border-border rounded-xl p-4 h-full">
-      {top.length === 0 ? (
-        <p className="text-sm text-muted py-6 text-center">No game impressions yet.</p>
-      ) : (
-        <ul className="space-y-2.5">
+    <div className="card-glow bg-card border border-border rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
+      <div className="min-w-0">
+        <p className="text-[18px] font-display font-bold text-foreground">Top Performing Games</p>
+        <p className="text-[10px] font-bold text-[#346c92]/90 mt-1 truncate">{names}</p>
+      </div>
+      {top.length > 0 && (
+        <div className="flex items-start gap-3 shrink-0">
           {top.map((g, i) => (
-            <li key={g.game} className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-muted w-4 text-center">{i + 1}</span>
-              <div className="w-9 h-9 rounded-lg overflow-hidden bg-surface border border-border shrink-0 flex items-center justify-center">
+            <div
+              key={g.game}
+              className="flex items-start gap-1.5"
+              title={`${g.game} · ${formatCompact(g.impressions)} impressions`}
+            >
+              <span className="text-base font-bold text-white leading-none">{i + 1}</span>
+              <div className="w-12 h-12 rounded-lg overflow-hidden bg-surface border border-border shrink-0 flex items-center justify-center">
                 {icons.get(g.game) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={icons.get(g.game)} alt={g.game} className="w-full h-full object-cover" />
                 ) : (
-                  <Gamepad2 size={16} className="text-muted" />
+                  <Gamepad2 size={18} className="text-muted" />
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">{g.game}</p>
-                <p className="text-xs text-muted">{formatCompact(g.impressions)} impressions</p>
-              </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
