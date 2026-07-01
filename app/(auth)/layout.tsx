@@ -8,7 +8,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="relative mb-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/feenix-full.png" alt="Feenix AdTech" className="h-[120px] w-auto" />
+        <img src="/feenix-full.png" alt="Feenix AdTech" className="h-[156px] w-auto" />
       </div>
       <div className="relative w-full max-w-md">{children}</div>
       <p className="relative text-muted-strong/70 text-xs mt-8 text-center leading-relaxed">

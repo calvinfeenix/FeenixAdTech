@@ -6,6 +6,7 @@ import { formatCompact, formatPercent } from "@/lib/utils";
 import StatCard from "@/components/stat-card";
 import EmptyState from "@/components/empty-state";
 import { TrendChart, BreakdownChart } from "@/components/charts-lazy";
+import CountryBreakdown from "@/components/country-breakdown";
 
 /**
  * Lazy-loaded analytics sections. These are async server components rendered
@@ -188,10 +189,7 @@ export async function CampaignAnalytics({
       )}
 
       {summary.byCountry.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-3">Impressions by country</h2>
-          <BreakdownChart data={summary.byCountry.map((c) => ({ label: countryLabel(c.country), value: c.impressions }))} />
-        </div>
+        <CountryBreakdown data={summary.byCountry.map((c) => ({ label: countryLabel(c.country), value: c.impressions }))} />
       )}
     </div>
   );

@@ -63,7 +63,11 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
           width={44}
           tickFormatter={(v: number) => formatCompact(v)}
         />
-        <Tooltip contentStyle={tooltipStyle} />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          labelStyle={{ color: "#cbe7f6" }}
+          formatter={(v, name) => [formatCompact(Number(v)), String(name)] as [string, string]}
+        />
         <Area
           type="monotone"
           name="Impressions"
