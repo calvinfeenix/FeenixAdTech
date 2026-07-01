@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, canUploadAssets } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { publicUrl, ASSET_BUCKET, THUMB_BUCKET } from "@/lib/storage";
 import AssetGallery from "@/components/asset-gallery";
@@ -32,7 +32,7 @@ export default async function AssetsPage() {
         }
       />
 
-      <AssetGallery assets={assets} isAdmin={profile.role === "admin"} />
+      <AssetGallery assets={assets} isAdmin={profile.role === "admin"} canUpload={canUploadAssets(profile)} />
     </div>
   );
 }

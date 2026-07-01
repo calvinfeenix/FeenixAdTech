@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Megaphone, ArrowRight } from "lucide-react";
-import { requireApproved } from "@/lib/auth";
+import { requireApproved, canUploadAssets } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { publicUrl, THUMB_BUCKET } from "@/lib/storage";
 import { resolveRange } from "@/lib/analytics";
@@ -29,6 +29,7 @@ export default async function DashboardPage({
   const ids = campaigns.map((c) => c.id);
   const activeCount = campaigns.filter((c) => c.status === "active").length;
   const isAdmin = profile.role === "admin";
+  const canUpload = canUploadAssets(profile);
 
   // Creative thumbnails for the shown campaign cards (collage backgrounds).
   const shown = campaigns.slice(0, 3);
@@ -59,13 +60,15 @@ export default async function DashboardPage({
           <p className="mt-1 text-2xl sm:text-3xl font-display font-bold text-foreground">
             Craft your in-game ad delivery now.
           </p>
-          <Link
-            href="/assets"
-            className="mt-6 inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-black font-semibold rounded-full px-12 sm:px-20 py-2.5 transition-all duration-200 hover:shadow-[0_6px_28px_-6px_var(--accent)] active:scale-95"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/UploadIcon.png" alt="" width={16} height={16} className="object-contain" /> Upload Asset
-          </Link>
+          {canUpload && (
+            <Link
+              href="/assets"
+              className="mt-6 inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-black font-semibold rounded-full px-12 sm:px-20 py-2.5 transition-all duration-200 hover:shadow-[0_6px_28px_-6px_var(--accent)] active:scale-95"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/UploadIcon.png" alt="" width={16} height={16} className="object-contain" /> Upload Asset
+            </Link>
+          )}
         </div>
       </div>
 

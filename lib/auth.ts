@@ -46,3 +46,12 @@ export async function requireSuperAdmin(): Promise<Profile> {
   if (!profile.is_super_admin) redirect("/dashboard");
   return profile;
 }
+
+/**
+ * Whether a profile may upload assets. Super admins always can; everyone else
+ * needs the `can_upload_assets` flag (granted by a super admin in the Users
+ * screen). Tolerates the flag being absent (pre-migration) → treated as false.
+ */
+export function canUploadAssets(profile: Profile): boolean {
+  return profile.is_super_admin || profile.can_upload_assets === true;
+}

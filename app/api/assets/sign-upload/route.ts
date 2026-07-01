@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionProfile } from "@/lib/auth";
+import { getSessionProfile, canUploadAssets } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { ASSET_BUCKET } from "@/lib/storage";
 
@@ -13,7 +13,7 @@ export const runtime = "nodejs";
  */
 export async function POST(request: Request) {
   const profile = await getSessionProfile();
-  if (!profile || profile.role !== "admin" || profile.status !== "approved")
+  if (!profile || profile.status !== "approved" || !canUploadAssets(profile))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: { filename?: string };

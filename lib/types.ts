@@ -15,6 +15,8 @@ export interface Profile {
   status: UserStatus;
   /** Super admins can remove users (the only privilege beyond a normal admin). */
   is_super_admin: boolean;
+  /** Asset-upload permission, granted/revoked by super admins in the Users screen. */
+  can_upload_assets: boolean;
 }
 
 export type AssetType = "image" | "video" | "audio";

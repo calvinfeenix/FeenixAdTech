@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Shield, ShieldOff, Clock, Trash2 } from "lucide-react";
+import { Check, X, Shield, ShieldOff, Clock, Trash2, UploadCloud } from "lucide-react";
 import { useToast } from "@/components/toast";
 import Badge from "@/components/badge";
 import { initials, roleColors, userStatusColors, formatDate } from "@/lib/utils";
-import { setUserRole, setUserStatus, removeUser } from "@/app/(app)/admin/users/actions";
+import { setUserRole, setUserStatus, removeUser, setAssetUploadPermission } from "@/app/(app)/admin/users/actions";
 import type { Profile } from "@/lib/types";
 
 export default function UsersManager({
@@ -60,6 +60,37 @@ export default function UsersManager({
           <Badge className={userStatusColors[u.status]}>{u.status}</Badge>
           <span className="text-xs text-muted w-20 text-right">{formatDate(u.created_at)}</span>
         </div>
+
+        {/* Asset-upload permission — SUPER ADMIN ONLY. Super admins always have it,
+            so their row shows a static indicator rather than a toggle. */}
+        {isSuperAdmin &&
+          (u.is_super_admin ? (
+            <span
+              title="Super admins can always upload assets"
+              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-[#66CCFF]/10 text-[#66CCFF]/80 shrink-0"
+            >
+              <UploadCloud size={13} /> Uploads on
+            </span>
+          ) : (
+            <button
+              disabled={disabled}
+              onClick={() =>
+                run(
+                  u.id,
+                  () => setAssetUploadPermission(u.id, !u.can_upload_assets),
+                  u.can_upload_assets ? "Upload access revoked" : "Upload access granted"
+                )
+              }
+              title="Toggle asset-upload permission"
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-colors disabled:opacity-50 shrink-0 ${
+                u.can_upload_assets
+                  ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                  : "bg-white/5 text-muted hover:text-foreground hover:bg-white/10"
+              }`}
+            >
+              <UploadCloud size={13} /> {u.can_upload_assets ? "Uploads on" : "Uploads off"}
+            </button>
+          ))}
 
         {!isSelf && (
           <div className="flex items-center gap-1.5 shrink-0">

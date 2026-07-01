@@ -49,6 +49,27 @@ export async function setUserRole(userId: string, role: UserRole): Promise<Actio
 }
 
 /**
+ * Grant or revoke asset-upload permission — SUPER ADMIN ONLY. This is the
+ * capability that used to be implicit for admins; super admins now assign it.
+ * (Super admins can always upload regardless, so toggling their own flag is a
+ * no-op — the UI doesn't offer it.)
+ */
+export async function setAssetUploadPermission(
+  userId: string,
+  canUpload: boolean
+): Promise<ActionResult> {
+  const me = await getSessionProfile();
+  if (!me || me.status !== "approved" || !me.is_super_admin)
+    return { error: "Only a super admin can change upload permissions." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ can_upload_assets: canUpload }).eq("id", userId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
+/**
  * Permanently remove a user — SUPER ADMIN ONLY (the one privilege beyond a
  * normal admin). Deletes the auth user; the profile row cascades away with it.
  */

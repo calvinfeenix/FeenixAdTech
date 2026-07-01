@@ -43,9 +43,11 @@ const TYPES: (AssetType | "all")[] = ["all", "image", "video"];
 export default function AssetGallery({
   assets,
   isAdmin,
+  canUpload,
 }: {
   assets: Asset[];
   isAdmin: boolean;
+  canUpload: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -202,7 +204,7 @@ export default function AssetGallery({
             </button>
           ))}
         </div>
-        {isAdmin && (
+        {canUpload && (
           <button
             onClick={() => setShowUploader(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm bg-accent hover:bg-accent-hover text-black font-semibold transition-all duration-200 hover:shadow-[0_4px_20px_-4px_var(--accent)] active:scale-95"
@@ -219,7 +221,7 @@ export default function AssetGallery({
           title="No assets found"
           description={
             assets.length === 0
-              ? isAdmin
+              ? canUpload
                 ? "Upload your first creative to build the repository."
                 : "No assets have been uploaded yet."
               : "Try a different search or filter."

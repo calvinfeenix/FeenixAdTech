@@ -20,6 +20,8 @@ create table if not exists profiles (
 );
 -- Super admin: a normal admin that can ALSO remove users (and sees Settings).
 alter table profiles add column if not exists is_super_admin boolean not null default false;
+-- Asset-upload permission — granted by super admins (was previously implicit for admins).
+alter table profiles add column if not exists can_upload_assets boolean not null default false;
 create index if not exists idx_profiles_status on profiles(status);
 create index if not exists idx_profiles_role on profiles(role);
 

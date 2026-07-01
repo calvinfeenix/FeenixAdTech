@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { getSessionProfile } from "@/lib/auth";
+import { getSessionProfile, canUploadAssets } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { ASSET_BUCKET, THUMB_BUCKET } from "@/lib/storage";
@@ -22,7 +22,7 @@ const MAX_BYTES = 100 * 1024 * 1024; // 100 MB ceiling
  */
 export async function POST(request: Request) {
   const profile = await getSessionProfile();
-  if (!profile || profile.role !== "admin" || profile.status !== "approved") {
+  if (!profile || profile.status !== "approved" || !canUploadAssets(profile)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
